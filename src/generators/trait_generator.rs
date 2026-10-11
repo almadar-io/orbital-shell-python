@@ -8,7 +8,6 @@ use orbital_core::ir::{
     OirTransition, OirTransitionFrom,
 };
 use orbital_core::str_utils::to_snake_case;
-use std::collections::HashMap;
 
 /// Generate trait state machine classes
 pub fn generate_traits(module: &OirModule) -> Vec<(String, String)> {
@@ -229,8 +228,8 @@ fn generate_trait_class(trait_def: &OirTrait) -> String {
     // Generate event handlers
     if !trait_def.transitions.is_empty() {
         // Group transitions by event
-        let mut transitions_by_event: std::collections::HashMap<&str, Vec<&OirTransition>> =
-            std::collections::HashMap::new();
+        let mut transitions_by_event: std::collections::BTreeMap<&str, Vec<&OirTransition>> =
+            std::collections::BTreeMap::new();
 
         for transition in &trait_def.transitions {
             transitions_by_event
@@ -803,7 +802,7 @@ fn compile_leaf_effect(
 /// Python shell's injected service client).
 fn compile_substrate_service_call(
     name: &str,
-    args: &HashMap<String, OirExpr>,
+    args: &orbital_core::ir::OirFields,
     emit: Option<&OirEmitConfig>,
     ctx: &CodegenContext,
     indent: &str,

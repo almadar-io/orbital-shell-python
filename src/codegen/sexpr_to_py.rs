@@ -124,7 +124,7 @@ pub fn compile_expr_to_py(expr: &OirExpr, ctx: &CodegenContext) -> String {
 }
 
 /// Compile a dict literal
-fn compile_dict_literal(fields: &HashMap<String, OirExpr>, ctx: &CodegenContext) -> String {
+fn compile_dict_literal(fields: &orbital_core::ir::OirFields, ctx: &CodegenContext) -> String {
     if fields.is_empty() {
         return "{}".to_string();
     }
@@ -2138,7 +2138,7 @@ mod tests {
     #[test]
     fn navigate_with_payload_emits_params_in_python() {
         let ctx = CodegenContext::default();
-        let mut fields = HashMap::new();
+        let mut fields = orbital_core::ir::OirFields::new();
         fields.insert(
             "id".to_string(),
             OirExpr::String {

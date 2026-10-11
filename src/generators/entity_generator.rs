@@ -892,7 +892,7 @@ mod tests {
     fn mismatched_default_embeds_marker() {
         let mut entity = OirEntity::new("Task");
         let mut f = OirField::new("owner", OirType::reference("User"));
-        f.default = Some(OirValue::Object(std::collections::HashMap::new()));
+        f.default = Some(OirValue::Object(orbital_core::ir::OirObject::new()));
         entity.fields.push(f);
 
         let code = generate_entity(&entity);

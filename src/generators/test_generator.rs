@@ -1037,13 +1037,13 @@ fn find_path_with_transitions<'a>(
     }
 
     // BFS to find shortest path
-    use std::collections::{HashMap, HashSet, VecDeque};
+    use std::collections::{HashSet, VecDeque};
 
     let mut visited: HashSet<String> = HashSet::new();
     let mut queue: VecDeque<(String, Vec<PathStep<'a>>)> = VecDeque::new();
 
     // Build adjacency map with transition references
-    let mut adj: HashMap<String, Vec<&'a OirTransition>> = HashMap::new();
+    let mut adj: std::collections::BTreeMap<String, Vec<&'a OirTransition>> = std::collections::BTreeMap::new();
     for t in &trait_def.transitions {
         let from_states = match &t.from {
             OirTransitionFrom::Single(s) => vec![s.clone()],

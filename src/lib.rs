@@ -18,6 +18,7 @@ mod backend;
 pub mod codegen;
 mod generators;
 mod shell;
+pub mod shell_program;
 
 pub use backend::PythonBackend;
 pub use codegen::*;
