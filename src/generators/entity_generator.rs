@@ -222,11 +222,6 @@ impl TargetTypeRenderer for PythonRenderer<'_> {
     fn json(&self) -> String {
         "Dict[str, Any]".to_string()
     }
-    fn scalar(&self) -> String {
-        // The closed `string | number | boolean | null` union, spelled with
-        // the already-imported `typing.Union` — no header change needed.
-        "Union[str, float, bool, None]".to_string()
-    }
     fn row(&self, entity: &str) -> String {
         // The entity's own model; `from __future__ import annotations` makes
         // the forward name legal wherever the model sits in the file.
@@ -336,11 +331,6 @@ impl TargetTypeRenderer for PythonRenderer<'_> {
     }
     fn classify_json(&self) -> TypeMappingClass {
         TypeMappingClass::Lossy
-    }
-    fn classify_scalar(&self) -> TypeMappingClass {
-        // Pair decision with `scalar`: `Union[str, float, bool, None]` spells
-        // the closed union — Faithful (Phase 3).
-        TypeMappingClass::Faithful
     }
     fn classify_node(&self) -> TypeMappingClass {
         // The json carrier keeps the pattern tree's STRUCTURE and erases
@@ -668,10 +658,6 @@ mod tests {
         assert_eq!(map_type_to_python(&OirType::Date, true), "datetime");
         assert_eq!(map_type_to_python(&OirType::DateTime, true), "datetime");
         assert_eq!(map_type_to_python(&OirType::Json, true), "Dict[str, Any]");
-        assert_eq!(
-            map_type_to_python(&OirType::Scalar, true),
-            "Union[str, float, bool, None]"
-        );
         assert_eq!(map_type_to_python(&OirType::Trait, true), "str");
         assert_eq!(map_type_to_python(&OirType::SExpr, true), "Any");
         assert_eq!(
