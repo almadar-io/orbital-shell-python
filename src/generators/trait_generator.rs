@@ -716,6 +716,27 @@ fn compile_leaf_effect(
                 orbital_core::unsupported_operator_marker("http")
             ));
         }
+        OirEffect::RandomBytes { .. } => {
+            code.push_str(&format!(
+                "{}# {}\n",
+                indent,
+                orbital_core::unsupported_operator_marker("random-bytes")
+            ));
+        }
+        OirEffect::CredentialStatus { .. } => {
+            code.push_str(&format!(
+                "{}# {}\n",
+                indent,
+                orbital_core::unsupported_operator_marker("credential-status")
+            ));
+        }
+        OirEffect::CredentialForget { .. } => {
+            code.push_str(&format!(
+                "{}# {}\n",
+                indent,
+                orbital_core::unsupported_operator_marker("credential-forget")
+            ));
+        }
         OirEffect::Set { target, value, .. } => {
             let target_code = compile_binding_to_py(target, ctx);
             let value_code = compile_expr_to_py(value, ctx);

@@ -2183,6 +2183,15 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         OirEffect::Http { .. } => {
             format!("# {}", orbital_core::unsupported_operator_marker("http"))
         }
+        OirEffect::RandomBytes { .. } => {
+            format!("# {}", orbital_core::unsupported_operator_marker("random-bytes"))
+        }
+        OirEffect::CredentialStatus { .. } => {
+            format!("# {}", orbital_core::unsupported_operator_marker("credential-status"))
+        }
+        OirEffect::CredentialForget { .. } => {
+            format!("# {}", orbital_core::unsupported_operator_marker("credential-forget"))
+        }
         OirEffect::Spawn { entity_type, props } => {
             let props_code = compile_expr_to_py(props, ctx);
             format!("spawn(\"{}\", {})", entity_type, props_code)
@@ -2475,6 +2484,24 @@ mod tests {
             "python has no egress-enforcing http client; the refusal must be loud, got: {out}"
         );
         assert!(!out.contains("api.example.com"), "{out}");
+    }
+
+    #[test]
+    fn host_effects_are_not_silently_dropped_by_the_python_shell() {
+        let ctx = CodegenContext::default();
+        let effects = [
+            ("random-bytes", OirEffect::random_bytes(OirExpr::number(16.0), None)),
+            ("credential-status", OirEffect::credential_status(OirExpr::string("tok"), None)),
+            ("credential-forget", OirEffect::credential_forget(OirExpr::string("tok"), None)),
+        ];
+        for (name, effect) in effects {
+            let out = compile_effect(&effect, &ctx);
+            assert!(
+                out.contains(&format!("UNSUPPORTED operator: {name}")),
+                "python has no host to draw or hold these; the refusal must be loud, got: {out}"
+            );
+            assert!(!out.contains("tok") && !out.contains("16"), "{out}");
+        }
     }
 
     #[test]
