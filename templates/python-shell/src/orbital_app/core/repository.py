@@ -14,6 +14,10 @@ import uuid
 from .firebase import get_firestore
 
 
+class DuplicateIdError(Exception):
+    """A create named an id the store already holds (persist code `duplicate-id`)."""
+
+
 class Repository(ABC):
     """Abstract repository interface."""
 
@@ -35,6 +39,11 @@ class Repository(ABC):
     @abstractmethod
     async def create(self, entity_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new entity."""
+        pass
+
+    @abstractmethod
+    async def upsert(self, entity_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create the entity or replace it whole by its `id`, keeping the stored `createdAt`."""
         pass
 
     @abstractmethod
@@ -81,15 +90,27 @@ class InMemoryRepository(Repository):
         return entities
 
     async def create(self, entity_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new entity."""
+        """Create a new entity; a taken id raises `DuplicateIdError`."""
         entity_id = data.get("id") or str(uuid.uuid4())
         data = {**data, "id": entity_id}
 
         if entity_type not in self._store:
             self._store[entity_type] = {}
+        if entity_id in self._store[entity_type]:
+            raise DuplicateIdError(f"{entity_type} {entity_id} already exists")
         self._store[entity_type][entity_id] = data
 
         return data
+
+    async def upsert(self, entity_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create the entity or replace it whole by `id`, keeping the stored `createdAt`."""
+        entity_id = data["id"]
+        row = {**data}
+        existing = self._store.get(entity_type, {}).get(entity_id)
+        if existing is not None and existing.get("createdAt") is not None:
+            row["createdAt"] = existing["createdAt"]
+        self._store.setdefault(entity_type, {})[entity_id] = row
+        return row
 
     async def update(
         self, entity_type: str, entity_id: str, data: Dict[str, Any]
@@ -202,13 +223,33 @@ class FirestoreRepository(Repository):
         return entities
 
     async def create(self, entity_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new entity in Firestore."""
+        """Create a new entity in Firestore; a taken id raises `DuplicateIdError`."""
+        from google.api_core.exceptions import AlreadyExists
+
         entity_id = data.get("id") or str(uuid.uuid4())
 
         # Remove id from data to avoid duplication (id is the document key)
         doc_data = {k: v for k, v in data.items() if k != "id"}
 
         doc_ref = self.db.collection(entity_type).document(entity_id)
+        try:
+            doc_ref.create(doc_data)
+        except AlreadyExists as taken:
+            raise DuplicateIdError(f"{entity_type} {entity_id} already exists") from taken
+
+        return {**doc_data, "id": entity_id}
+
+    async def upsert(self, entity_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create the document or replace it whole, keeping the stored `createdAt`."""
+        entity_id = data["id"]
+        doc_data = {k: v for k, v in data.items() if k != "id"}
+
+        doc_ref = self.db.collection(entity_type).document(entity_id)
+        existing = doc_ref.get()
+        if existing.exists:
+            created_at = (existing.to_dict() or {}).get("createdAt")
+            if created_at is not None:
+                doc_data["createdAt"] = created_at
         doc_ref.set(doc_data)
 
         return {**doc_data, "id": entity_id}

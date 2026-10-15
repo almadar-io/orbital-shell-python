@@ -131,7 +131,13 @@ fn compile_dict_literal(fields: &orbital_core::ir::OirFields, ctx: &CodegenConte
 
     let pairs: Vec<String> = fields
         .iter()
-        .map(|(k, v)| format!("\"{}\": {}", escape_python_string(k), compile_expr_to_py(v, ctx)))
+        .map(|(k, v)| {
+            format!(
+                "\"{}\": {}",
+                escape_python_string(k),
+                compile_expr_to_py(v, ctx)
+            )
+        })
         .collect();
 
     format!("{{ {} }}", pairs.join(", "))
@@ -158,7 +164,10 @@ fn compile_binding(binding: &OirBinding, ctx: &CodegenContext) -> String {
             // The Python shell has no dispatch scope yet (G-ORB-SHELL-PY-002).
             return "None".to_string();
         }
-        OirBindingRoot::Trait(_) | OirBindingRoot::Pages | OirBindingRoot::CurrentTheme | OirBindingRoot::Locale => {
+        OirBindingRoot::Trait(_)
+        | OirBindingRoot::Pages
+        | OirBindingRoot::CurrentTheme
+        | OirBindingRoot::Locale => {
             // `@trait.X` is a render-time client binding (resolved by
             // `<TraitFrame>` in `@almadar/ui`). It never applies to the
             // Python shell, which generates server-side logic. Emit `None`
@@ -257,7 +266,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             let n = parts.len();
             parts.push(compile_expr_to_py(&args[1], &local_ctx));
             if n == 0 {
-                return parts.into_iter().next().unwrap_or_else(|| "None".to_string());
+                return parts
+                    .into_iter()
+                    .next()
+                    .unwrap_or_else(|| "None".to_string());
             }
             return format!("({})[{}]", parts.join(", "), n);
         }
@@ -321,7 +333,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "array/nth" => {
             if compiled_args.len() >= 2 {
-                format!("({0}[{1}] if -len({0}) <= {1} < len({0}) else None)", compiled_args[0], compiled_args[1])
+                format!(
+                    "({0}[{1}] if -len({0}) <= {1} < len({0}) else None)",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "None".to_string()
             }
@@ -330,14 +345,23 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             if compiled_args.len() >= 2 {
                 format!("({0}[{1}:])", compiled_args[0], compiled_args[1])
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "[]".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "[]".to_string())
             }
         }
         "array/dropLast" => {
             if compiled_args.len() >= 2 {
-                format!("({0}[:len({0})-({1}) if len({0})>=({1}) else 0])", compiled_args[0], compiled_args[1])
+                format!(
+                    "({0}[:len({0})-({1}) if len({0})>=({1}) else 0])",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "[]".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "[]".to_string())
             }
         }
         "array/prepend" => {
@@ -356,7 +380,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "array/find" => {
             if compiled_args.len() >= 2 {
-                format!("next((x for x in {0} if {1}), None)", compiled_args[0], compiled_args[1])
+                format!(
+                    "next((x for x in {0} if {1}), None)",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "None".to_string()
             }
@@ -370,31 +397,55 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "object/get" => {
             if compiled_args.len() >= 3 {
-                format!("object_get({}, {}, {})", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "object_get({}, {}, {})",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else if compiled_args.len() == 2 {
                 format!("object_get({}, {})", compiled_args[0], compiled_args[1])
             } else {
                 "None".to_string()
             }
         }
-        "object/keys" => format!("list({}.keys())", compiled_args.first().map(|s| s.as_str()).unwrap_or("{}")),
-        "object/values" => format!("list({}.values())", compiled_args.first().map(|s| s.as_str()).unwrap_or("{}")),
+        "object/keys" => format!(
+            "list({}.keys())",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("{}")
+        ),
+        "object/values" => format!(
+            "list({}.values())",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("{}")
+        ),
         "object/merge" | "merge" => format!("object_merge({})", compiled_args.join(", ")),
         "object/omit" => {
             if compiled_args.len() >= 2 {
-                format!("{{k: v for k, v in ({}).items() if k not in ({})}})", compiled_args[0], compiled_args[1])
+                format!(
+                    "{{k: v for k, v in ({}).items() if k not in ({})}})",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "{}".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "{}".to_string())
             }
         }
         "object/set" => {
             if compiled_args.len() >= 3 {
-                format!("object_set({}, {}, {})", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "object_set({}, {}, {})",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "{}".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "{}".to_string())
             }
         }
-        "object/clone" => format!("dict({})", compiled_args.first().map(|s| s.as_str()).unwrap_or("{}")),
+        "object/clone" => format!(
+            "dict({})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("{}")
+        ),
 
         // Array higher-order (mirror TS operator.rs). Some survive as Call
         // form rather than OirExpr::Map/Filter, so handle them here too.
@@ -409,19 +460,28 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             if compiled_args.len() >= 2 {
                 format!("array_filter({}, {})", compiled_args[0], compiled_args[1])
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "[]".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "[]".to_string())
             }
         }
         "array/some" => {
             if compiled_args.len() >= 2 {
-                format!("any({}(x) for x in ({}))", compiled_args[1], compiled_args[0])
+                format!(
+                    "any({}(x) for x in ({}))",
+                    compiled_args[1], compiled_args[0]
+                )
             } else {
                 "False".to_string()
             }
         }
         "array/every" => {
             if compiled_args.len() >= 2 {
-                format!("all({}(x) for x in ({}))", compiled_args[1], compiled_args[0])
+                format!(
+                    "all({}(x) for x in ({}))",
+                    compiled_args[1], compiled_args[0]
+                )
             } else {
                 "True".to_string()
             }
@@ -436,7 +496,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "array/range" => {
             if compiled_args.len() >= 3 {
-                format!("list(range({}, {}, {}))", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "list(range({}, {}, {}))",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else if compiled_args.len() == 2 {
                 format!("list(range({}, {}))", compiled_args[0], compiled_args[1])
             } else {
@@ -445,12 +508,21 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "array/reduce" => {
             if compiled_args.len() >= 3 {
-                format!("functools.reduce({}, {}, {})", compiled_args[2], compiled_args[0], compiled_args[1])
+                format!(
+                    "functools.reduce({}, {}, {})",
+                    compiled_args[2], compiled_args[0], compiled_args[1]
+                )
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "None".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "None".to_string())
             }
         }
-        "array/sum" => format!("sum({})", compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")),
+        "array/sum" => format!(
+            "sum({})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")
+        ),
         "array/avg" | "array/average" | "average" => {
             if !compiled_args.is_empty() {
                 format!("(sum({0})/len({0}) if {0} else 0)", compiled_args[0])
@@ -467,15 +539,27 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "array/slice" => {
             if compiled_args.len() >= 3 {
-                format!("({0}[{1}:{2}])", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "({0}[{1}:{2}])",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else if compiled_args.len() == 2 {
                 format!("({0}[{1}:])", compiled_args[0], compiled_args[1])
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "[]".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "[]".to_string())
             }
         }
-        "array/reverse" => format!("({})[::-1]", compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")),
-        "array/sort" => format!("sorted({})", compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")),
+        "array/reverse" => format!(
+            "({})[::-1]",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")
+        ),
+        "array/sort" => format!(
+            "sorted({})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")
+        ),
 
         // math/random + grid/* (cells are {x,y} dicts — mirror TS operator.rs)
         "math/random" => "random.random()".to_string(),
@@ -509,7 +593,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "grid/in-bounds" => {
             if compiled_args.len() >= 3 {
-                format!("grid_in_bounds({}, {}, {})", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "grid_in_bounds({}, {}, {})",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else {
                 "False".to_string()
             }
@@ -523,7 +610,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "grid/from-world" => {
             if compiled_args.len() >= 2 {
-                format!("{{\"x\": int({0}.get(\"x\",0) // {1}), \"y\": int({0}.get(\"y\",0) // {1})}}", compiled_args[0], compiled_args[1])
+                format!(
+                    "{{\"x\": int({0}.get(\"x\",0) // {1}), \"y\": int({0}.get(\"y\",0) // {1})}}",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "{}".to_string()
             }
@@ -933,7 +1023,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "tensor/max" => {
             if compiled_args.len() > 1 {
-                format!("torch.max({}, dim={}).values", compiled_args[0], compiled_args[1])
+                format!(
+                    "torch.max({}, dim={}).values",
+                    compiled_args[0], compiled_args[1]
+                )
             } else if !compiled_args.is_empty() {
                 format!("torch.max({})", compiled_args[0])
             } else {
@@ -942,7 +1035,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "tensor/min" => {
             if compiled_args.len() > 1 {
-                format!("torch.min({}, dim={}).values", compiled_args[0], compiled_args[1])
+                format!(
+                    "torch.min({}, dim={}).values",
+                    compiled_args[0], compiled_args[1]
+                )
             } else if !compiled_args.is_empty() {
                 format!("torch.min({})", compiled_args[0])
             } else {
@@ -951,7 +1047,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "tensor/argmax" => {
             if compiled_args.len() > 1 {
-                format!("torch.argmax({}, dim={})", compiled_args[0], compiled_args[1])
+                format!(
+                    "torch.argmax({}, dim={})",
+                    compiled_args[0], compiled_args[1]
+                )
             } else if !compiled_args.is_empty() {
                 format!("torch.argmax({})", compiled_args[0])
             } else {
@@ -1378,7 +1477,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "train/crossEntropy" => {
             if compiled_args.len() >= 2 {
-                format!("F.cross_entropy({}, {})", compiled_args[0], compiled_args[1])
+                format!(
+                    "F.cross_entropy({}, {})",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "0".to_string()
             }
@@ -1441,7 +1543,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "train/computeReturns" => {
             if compiled_args.len() >= 2 {
-                format!("compute_returns({}, {})", compiled_args[0], compiled_args[1])
+                format!(
+                    "compute_returns({}, {})",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "torch.tensor([])".to_string()
             }
@@ -1471,16 +1576,25 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "math/lerp" => {
             if compiled_args.len() >= 3 {
-                format!("({0} + ({1} - {0}) * {2})", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "({0} + ({1} - {0}) * {2})",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else {
                 "0".to_string()
             }
         }
         "str/default" => {
             if compiled_args.len() >= 2 {
-                format!("({0} if {0} is not None else {1})", compiled_args[0], compiled_args[1])
+                format!(
+                    "({0} if {0} is not None else {1})",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "None".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "None".to_string())
             }
         }
         "array/max" => {
@@ -1505,14 +1619,20 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             if compiled_args.len() >= 2 {
                 format!("({0}[:{1}])", compiled_args[0], compiled_args[1])
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "[]".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "[]".to_string())
             }
         }
         "array/takeLast" => {
             if compiled_args.len() >= 2 {
                 format!("({0}[-int({1}):])", compiled_args[0], compiled_args[1])
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "[]".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "[]".to_string())
             }
         }
         "array/group" | "array/groupBy" => {
@@ -1524,7 +1644,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "array/findIndex" => {
             if compiled_args.len() >= 2 {
-                format!("next((i for i, x in enumerate({0}) if {1}(x)), -1)", compiled_args[0], compiled_args[1])
+                format!(
+                    "next((i for i, x in enumerate({0}) if {1}(x)), -1)",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "-1".to_string()
             }
@@ -1536,15 +1659,36 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
                 "[]".to_string()
             }
         }
-        "object/entries" => format!("[[k, v] for k, v in ({{}} if {0} is None else {0}).items()]", compiled_args.first().map(|s| s.as_str()).unwrap_or("{}")),
+        "object/entries" => format!(
+            "[[k, v] for k, v in ({{}} if {0} is None else {0}).items()]",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("{}")
+        ),
 
         // ===== str/* (mirror TS operator.rs string category) =====
-        "str/lower" => format!("{}.lower()", compiled_args.first().map(|s| s.as_str()).unwrap_or("\"\"")),
+        "str/lower" => format!(
+            "{}.lower()",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("\"\"")
+        ),
         // G-CROSS-041: the encoded quote body decodes to the quoted data.
-        "quote" => format!("json.loads({})", compiled_args.first().map(|s| s.as_str()).unwrap_or("\"null\"")),
-        "str/upper" => format!("{}.upper()", compiled_args.first().map(|s| s.as_str()).unwrap_or("\"\"")),
-        "str/trim" => format!("{}.strip()", compiled_args.first().map(|s| s.as_str()).unwrap_or("\"\"")),
-        "str/len" | "str/length" => format!("len({})", compiled_args.first().map(|s| s.as_str()).unwrap_or("\"\"")),
+        "quote" => format!(
+            "json.loads({})",
+            compiled_args
+                .first()
+                .map(|s| s.as_str())
+                .unwrap_or("\"null\"")
+        ),
+        "str/upper" => format!(
+            "{}.upper()",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("\"\"")
+        ),
+        "str/trim" => format!(
+            "{}.strip()",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("\"\"")
+        ),
+        "str/len" | "str/length" => format!(
+            "len({})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("\"\"")
+        ),
         "str/concat" => format!("(\"\".join([{}]))", compiled_args.join(", ")),
         "str/includes" => {
             if compiled_args.len() >= 2 {
@@ -1557,23 +1701,38 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             if compiled_args.len() >= 2 {
                 format!("({0}.split({1}))", compiled_args[0], compiled_args[1])
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "[]".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "[]".to_string())
             }
         }
         "str/replace" => {
             if compiled_args.len() >= 3 {
-                format!("({0}.replace({1}, {2}))", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "({0}.replace({1}, {2}))",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "\"\"".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "\"\"".to_string())
             }
         }
         "str/slice" => {
             if compiled_args.len() >= 3 {
-                format!("({0}[{1}:{2}])", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "({0}[{1}:{2}])",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else if compiled_args.len() == 2 {
                 format!("({0}[{1}:])", compiled_args[0], compiled_args[1])
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "\"\"".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "\"\"".to_string())
             }
         }
         "str/starts-with" | "str/startsWith" => {
@@ -1592,17 +1751,29 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "str/join" => {
             if compiled_args.len() >= 2 {
-                format!("({1}).join(str(x) for x in ({0}))", compiled_args[0], compiled_args[1])
+                format!(
+                    "({1}).join(str(x) for x in ({0}))",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "\"\"".to_string()
             }
         }
 
-        "array/unique" => format!("list(dict.fromkeys({0}))", compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")),
-        "object/fromEntries" => format!("dict({0})", compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")),
+        "array/unique" => format!(
+            "list(dict.fromkeys({0}))",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")
+        ),
+        "object/fromEntries" => format!(
+            "dict({0})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("[]")
+        ),
         "object/pick" => {
             if compiled_args.len() >= 2 {
-                format!("{{k: ({0}).get(k) for k in ({1}) if k in ({0})}}", compiled_args[0], compiled_args[1])
+                format!(
+                    "{{k: ({0}).get(k) for k in ({1}) if k in ({0})}}",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "{}".to_string()
             }
@@ -1629,57 +1800,129 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "time/add" => {
             if compiled_args.len() >= 3 {
-                format!("({0} + {1} * time_unit_ms({2}))", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "({0} + {1} * time_unit_ms({2}))",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "0".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "0".to_string())
             }
         }
         "time/subtract" => {
             if compiled_args.len() >= 3 {
-                format!("({0} - {1} * time_unit_ms({2}))", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "({0} - {1} * time_unit_ms({2}))",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else {
-                compiled_args.first().cloned().unwrap_or_else(|| "0".to_string())
+                compiled_args
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "0".to_string())
             }
         }
         "time/diff" => {
             if compiled_args.len() >= 3 {
-                format!("int(({0} - {1}) / (time_unit_ms({2}) or 1))", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "int(({0} - {1}) / (time_unit_ms({2}) or 1))",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else {
                 "0".to_string()
             }
         }
-        "time/isBefore" => format!("({0} < {1})", compiled_args.get(0).map(|s| s.as_str()).unwrap_or("0"), compiled_args.get(1).map(|s| s.as_str()).unwrap_or("0")),
-        "time/isAfter" => format!("({0} > {1})", compiled_args.get(0).map(|s| s.as_str()).unwrap_or("0"), compiled_args.get(1).map(|s| s.as_str()).unwrap_or("0")),
-        "time/isSame" => format!("({0} == {1})", compiled_args.get(0).map(|s| s.as_str()).unwrap_or("0"), compiled_args.get(1).map(|s| s.as_str()).unwrap_or("0")),
+        "time/isBefore" => format!(
+            "({0} < {1})",
+            compiled_args.get(0).map(|s| s.as_str()).unwrap_or("0"),
+            compiled_args.get(1).map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/isAfter" => format!(
+            "({0} > {1})",
+            compiled_args.get(0).map(|s| s.as_str()).unwrap_or("0"),
+            compiled_args.get(1).map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/isSame" => format!(
+            "({0} == {1})",
+            compiled_args.get(0).map(|s| s.as_str()).unwrap_or("0"),
+            compiled_args.get(1).map(|s| s.as_str()).unwrap_or("0")
+        ),
         "time/isBetween" => {
             if compiled_args.len() >= 3 {
-                format!("({0} >= {1} and {0} <= {2})", compiled_args[0], compiled_args[1], compiled_args[2])
+                format!(
+                    "({0} >= {1} and {0} <= {2})",
+                    compiled_args[0], compiled_args[1], compiled_args[2]
+                )
             } else {
                 "False".to_string()
             }
         }
-        "time/isPast" => format!("({0} < int(time.time() * 1000))", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
-        "time/isFuture" => format!("({0} > int(time.time() * 1000))", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
-        "time/year" => format!("time_year({0})", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
-        "time/month" => format!("time_month({0})", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
-        "time/day" => format!("time_day({0})", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
-        "time/hour" => format!("time_hour({0})", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
-        "time/minute" => format!("time_minute({0})", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
-        "time/second" => format!("time_second({0})", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
-        "time/weekday" => format!("time_weekday({0})", compiled_args.first().map(|s| s.as_str()).unwrap_or("0")),
+        "time/isPast" => format!(
+            "({0} < int(time.time() * 1000))",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/isFuture" => format!(
+            "({0} > int(time.time() * 1000))",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/year" => format!(
+            "time_year({0})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/month" => format!(
+            "time_month({0})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/day" => format!(
+            "time_day({0})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/hour" => format!(
+            "time_hour({0})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/minute" => format!(
+            "time_minute({0})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/second" => format!(
+            "time_second({0})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
+        "time/weekday" => format!(
+            "time_weekday({0})",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("0")
+        ),
 
         // ===== validate/* (type predicates) =====
         "validate/number" => {
             if !compiled_args.is_empty() {
-                format!("isinstance({0}, (int, float)) and not isinstance({0}, bool)", compiled_args[0])
+                format!(
+                    "isinstance({0}, (int, float)) and not isinstance({0}, bool)",
+                    compiled_args[0]
+                )
             } else {
                 "False".to_string()
             }
         }
-        "validate/string" => format!("isinstance({0}, str)", compiled_args.first().map(|s| s.as_str()).unwrap_or("None")),
-        "validate/boolean" => format!("isinstance({0}, bool)", compiled_args.first().map(|s| s.as_str()).unwrap_or("None")),
-        "validate/array" => format!("isinstance({0}, list)", compiled_args.first().map(|s| s.as_str()).unwrap_or("None")),
-        "validate/object" => format!("isinstance({0}, dict)", compiled_args.first().map(|s| s.as_str()).unwrap_or("None")),
+        "validate/string" => format!(
+            "isinstance({0}, str)",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("None")
+        ),
+        "validate/boolean" => format!(
+            "isinstance({0}, bool)",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("None")
+        ),
+        "validate/array" => format!(
+            "isinstance({0}, list)",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("None")
+        ),
+        "validate/object" => format!(
+            "isinstance({0}, dict)",
+            compiled_args.first().map(|s| s.as_str()).unwrap_or("None")
+        ),
 
         // ===== prob/* — statistical rung (Phase 4). Semantics ported from
         // packages/almadar-evaluator/std/prob.ts (the runtime evaluator).
@@ -1718,14 +1961,20 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "prob/beta" => {
             if compiled_args.len() >= 2 {
-                format!("random.betavariate({}, {})", compiled_args[0], compiled_args[1])
+                format!(
+                    "random.betavariate({}, {})",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "0.0".to_string()
             }
         }
         "prob/categorical" => {
             if compiled_args.len() >= 2 {
-                format!("random.choices({}, weights={}, k=1)[0]", compiled_args[0], compiled_args[1])
+                format!(
+                    "random.choices({}, weights={}, k=1)[0]",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "None".to_string()
             }
@@ -1742,7 +1991,10 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             // compiled body in a comprehension — exact mirror of
             // evalProbSample's per-iteration re-evaluation.
             if compiled_args.len() >= 2 {
-                format!("[{} for _ in range({})]", compiled_args[1], compiled_args[0])
+                format!(
+                    "[{} for _ in range({})]",
+                    compiled_args[1], compiled_args[0]
+                )
             } else {
                 "[]".to_string()
             }
@@ -1763,14 +2015,20 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
         }
         "prob/percentile" => {
             if compiled_args.len() >= 2 {
-                format!("prob_percentile({}, {})", compiled_args[0], compiled_args[1])
+                format!(
+                    "prob_percentile({}, {})",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "0".to_string()
             }
         }
         "prob/credible-interval" => {
             if compiled_args.len() >= 2 {
-                format!("prob_credible_interval({}, {})", compiled_args[0], compiled_args[1])
+                format!(
+                    "prob_credible_interval({}, {})",
+                    compiled_args[0], compiled_args[1]
+                )
             } else {
                 "[0, 0]".to_string()
             }
@@ -1789,10 +2047,12 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             // Python has no AST to re-evaluate. Emit a visible marker so any
             // behavior using it fails loudly at codegen (run on the JS path).
             let fn_name = function.replace('/', "_").replace('-', "_");
-            format!("# {} — {}({})",
+            format!(
+                "# {} — {}({})",
                 orbital_core::unsupported_operator_marker(function),
                 fn_name,
-                compiled_args.join(", "))
+                compiled_args.join(", ")
+            )
         }
 
         // Unknown operator — emit the shared marker so drift is caught by the
@@ -1909,8 +2169,9 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         }
         OirEffect::PersistBatch { .. } => {
             format!(
-                "# {}",
-                orbital_core::unsupported_operator_marker("persist batch")
+                "# {} ({})",
+                orbital_core::unsupported_operator_marker("persist batch"),
+                PUSHDOWN_STATUS
             )
         }
         OirEffect::CancelCall { .. } => {
@@ -1918,6 +2179,9 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
                 "# {}",
                 orbital_core::unsupported_operator_marker("cancel-call")
             )
+        }
+        OirEffect::Http { .. } => {
+            format!("# {}", orbital_core::unsupported_operator_marker("http"))
         }
         OirEffect::Spawn { entity_type, props } => {
             let props_code = compile_expr_to_py(props, ctx);
@@ -2026,11 +2290,17 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         OirEffect::Atomic { .. } => "await entity_store.run_transaction(effects)".to_string(),
         OirEffect::FetchStream { entity_type, .. } => {
             // fetch-stream is server-side streaming — Python backend emits a no-op stub
-            format!("# fetch-stream('{}') not supported in Python shell", entity_type)
+            format!(
+                "# fetch-stream('{}') not supported in Python shell",
+                entity_type
+            )
         }
         OirEffect::SendServer { event, .. } => {
             // Client-only — Python shell emits a stub comment
-            format!("# send-server({:?}) client-only, not applicable in Python shell", event)
+            format!(
+                "# send-server({:?}) client-only, not applicable in Python shell",
+                event
+            )
         }
         OirEffect::BrowserOpenFilePicker { options, .. } => {
             // Client device API — executed by the browser host, not the Python shell.
@@ -2054,15 +2324,13 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
                 compile_expr_to_py(text, ctx)
             )
         }
-        OirEffect::BrowserGeolocationCurrent { options, .. } => {
-            match options {
-                Some(o) => format!(
-                    "# client-device: browser/geolocation-current({})",
-                    compile_expr_to_py(o, ctx)
-                ),
-                None => "# client-device: browser/geolocation-current".to_string(),
-            }
-        }
+        OirEffect::BrowserGeolocationCurrent { options, .. } => match options {
+            Some(o) => format!(
+                "# client-device: browser/geolocation-current({})",
+                compile_expr_to_py(o, ctx)
+            ),
+            None => "# client-device: browser/geolocation-current".to_string(),
+        },
     }
 }
 
@@ -2110,6 +2378,13 @@ fn compile_oir_value(value: &orbital_core::ir::OirValue) -> String {
         }
     }
 }
+
+/// Declared reason (owner Q13, G-ORBITAL-SHELL-PYTHON-001) the Python shell
+/// stays on the plain data path: full listing then in-process filter/order,
+/// no query push-down, no `writeWhere`, no `persist batch`. The in-process order of an unordered fetch is the
+/// default one (`createdAt`, then `id`, EXEC-FETCH-1): `core/row_order.py`.
+pub const PUSHDOWN_STATUS: &str = "python shell has no query/write push-down or persist batch: \
+declared plain path, owner Q13, G-ORBITAL-SHELL-PYTHON-001";
 
 #[cfg(test)]
 mod tests {
@@ -2187,6 +2462,22 @@ mod tests {
     }
 
     #[test]
+    fn http_is_not_silently_dropped_by_the_python_shell() {
+        let ctx = CodegenContext::default();
+        let effect = OirEffect::http(
+            orbital_core::runtime::http_request::HttpMethod::Get,
+            OirExpr::string("https://api.example.com"),
+            OirExpr::string("/x"),
+        );
+        let out = compile_effect(&effect, &ctx);
+        assert!(
+            out.contains("UNSUPPORTED operator: http"),
+            "python has no egress-enforcing http client; the refusal must be loud, got: {out}"
+        );
+        assert!(!out.contains("api.example.com"), "{out}");
+    }
+
+    #[test]
     fn persist_batch_is_not_silently_dropped_by_the_python_shell() {
         let ctx = CodegenContext::default();
         let effect = OirEffect::persist_batch(OirExpr::array(vec![]), vec![]);
@@ -2209,13 +2500,17 @@ mod tests {
     #[test]
     fn a_quoted_literal_compiles_to_its_data() {
         use orbital_core::ir::OirValue;
-        let sexpr: orbital_core::schema::SExpression = serde_json::from_str(r#"[">", "@payload.amount", 0]"#).unwrap();
+        let sexpr: orbital_core::schema::SExpression =
+            serde_json::from_str(r#"[">", "@payload.amount", 0]"#).unwrap();
         let quoted = OirValue::Array(vec![
             OirValue::String("quote".into()),
             OirValue::String(orbital_core::schema::quote::encode_quote_body(&sexpr)),
         ]);
         assert_eq!(compile_oir_value(&quoted), r#"[">", "@payload.amount", 0]"#);
-        let list = OirValue::Array(vec![OirValue::String("quotes".into()), OirValue::String("{}".into())]);
+        let list = OirValue::Array(vec![
+            OirValue::String("quotes".into()),
+            OirValue::String("{}".into()),
+        ]);
         assert_eq!(compile_oir_value(&list), r#"["quotes", "{}"]"#, "control");
     }
 
@@ -2234,7 +2529,12 @@ mod tests {
                 .args(["-c", &script])
                 .output()
                 .expect("python3 must be on PATH to run the emitted quote code");
-            assert!(out.status.success(), "{}: {}", case["name"], String::from_utf8_lossy(&out.stderr));
+            assert!(
+                out.status.success(),
+                "{}: {}",
+                case["name"],
+                String::from_utf8_lossy(&out.stderr)
+            );
             let got: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
             assert_eq!(got, case["expr"], "{}", case["name"]);
         }
@@ -2264,5 +2564,47 @@ mod tests {
             missing.len(),
             missing.join("\n  ")
         );
+    }
+
+    #[test]
+    fn pushdown_status_names_reason_and_gap() {
+        assert!(PUSHDOWN_STATUS.contains("Q13"));
+        assert!(PUSHDOWN_STATUS.contains("G-ORBITAL-SHELL-PYTHON-001"));
+    }
+
+    #[test]
+    fn ordered_filtered_fetch_stays_on_plain_path() {
+        let ctx = CodegenContext::default();
+        let effect = OirEffect::Fetch {
+            entity_type: "Task".to_string(),
+            id: None,
+            filter: Some(OirExpr::Bool { value: true }),
+            order_by: Some(OirExpr::String {
+                value: "title".to_string(),
+            }),
+            offset: None,
+            limit: Some(OirExpr::Number { value: 5.0 }),
+            include: None,
+            emit: None,
+        };
+        let out = compile_effect(&effect, &ctx);
+        assert!(out.starts_with("await fetch(entity_type=\"Task\""), "{out}");
+        assert!(out.contains("filter=") && out.contains("order_by=") && out.contains("limit="));
+        assert!(
+            !out.contains("query") && !out.contains("write_where"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn persist_batch_fails_loudly_with_reason() {
+        let ctx = CodegenContext::default();
+        let effect = OirEffect::persist_batch(OirExpr::Null, Vec::new());
+        let out = compile_effect(&effect, &ctx);
+        assert!(
+            out.contains("# UNSUPPORTED operator: persist batch"),
+            "{out}"
+        );
+        assert!(out.contains(PUSHDOWN_STATUS), "{out}");
     }
 }

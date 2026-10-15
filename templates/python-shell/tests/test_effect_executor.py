@@ -83,6 +83,37 @@ class TestEffectExecutor:
         assert executor.effect_results[0]["success"] is True
 
     @pytest.mark.asyncio
+    async def test_persist_create_on_a_taken_id_fails_duplicate_id(self, executor, repository):
+        """A create naming a taken id fails with code duplicate-id and leaves the row."""
+        await repository.create("Task", {"id": "mix", "name": "one"})
+
+        result = await executor.execute(
+            ["persist", "create", "Task", {"id": "mix", "name": "two"}], {}
+        )
+
+        assert result is None
+        assert executor.effect_results[0]["success"] is False
+        assert executor.effect_results[0]["code"] == "duplicate-id"
+        assert (await repository.get("Task", "mix"))["name"] == "one"
+
+    @pytest.mark.asyncio
+    async def test_persist_upsert_replaces_the_row_and_needs_an_id(self, executor, repository):
+        """An upsert replaces the whole row by id; one naming no id is no-row-key."""
+        await repository.create("Task", {"id": "mix", "name": "one", "tone": "warm"})
+
+        result = await executor.execute(
+            ["persist", "upsert", "Task", {"id": "mix", "name": "two"}], {}
+        )
+
+        assert result == {"id": "mix", "name": "two"}
+        assert executor.effect_results[0]["success"] is True
+        assert executor.effect_results[0]["action"] == "upsert"
+
+        keyless = await executor.execute(["persist", "upsert", "Task", {"name": "x"}], {})
+        assert keyless is None
+        assert executor.effect_results[1]["code"] == "no-row-key"
+
+    @pytest.mark.asyncio
     async def test_execute_persist_update(self, executor, repository):
         """Test persist update effect."""
         created = await repository.create("Task", {"name": "Original", "status": "pending"})

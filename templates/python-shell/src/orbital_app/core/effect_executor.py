@@ -10,8 +10,9 @@ Server-side effects (per Orbital_Execution_Model.md):
 Client-side effects are collected and returned in response.clientEffects.
 """
 from typing import Dict, Any, List, Optional
-from .repository import Repository
+from .repository import DuplicateIdError, Repository
 from .bindings import resolve_binding
+from .row_order import order_rows, parse_fetch_order
 
 
 class EffectExecutor:
@@ -75,7 +76,11 @@ class EffectExecutor:
             # Collection fetch with optional filter
             filter_expr = options.get("filter")
             results = await self.repository.list(entity_type, filter_expr, context)
-            self.data[entity_type] = results
+            order_spec = options.get("orderBy")
+            if order_spec is not None:
+                order_spec = resolve_binding(order_spec, context)
+            # No orderBy: createdAt ascending, then id (EXEC-FETCH-1).
+            self.data[entity_type] = order_rows(results, parse_fetch_order(order_spec))
 
         return self.data.get(entity_type)
 
@@ -83,13 +88,26 @@ class EffectExecutor:
         self, effect: List[Any], context: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
         """Execute persist effect - write to database."""
-        action = effect[1]  # 'create', 'update', 'delete'
+        action = effect[1]  # 'create', 'upsert', 'update', 'delete'
         entity_type = effect[2]
         data = resolve_binding(effect[3], context) if len(effect) > 3 else {}
 
         result = None
+        code = None
+        error = None
         if action == "create":
-            result = await self.repository.create(entity_type, data)
+            try:
+                result = await self.repository.create(entity_type, data)
+            except DuplicateIdError as taken:
+                code = "duplicate-id"
+                error = str(taken)
+        elif action == "upsert":
+            row_id = data.get("id") if isinstance(data, dict) else None
+            if isinstance(row_id, str) and row_id:
+                result = await self.repository.upsert(entity_type, data)
+            else:
+                code = "no-row-key"
+                error = f"persist upsert {entity_type} resolved no row key"
         elif action == "update":
             entity_id = context.get("entityId") or (data.get("id") if isinstance(data, dict) else None)
             if entity_id:
@@ -100,15 +118,17 @@ class EffectExecutor:
                 await self.repository.delete(entity_type, entity_id)
                 result = {"deleted": True, "id": entity_id}
 
-        self.effect_results.append(
-            {
-                "effect": "persist",
-                "action": action,
-                "entityType": entity_type,
-                "data": result,
-                "success": result is not None,
-            }
-        )
+        entry = {
+            "effect": "persist",
+            "action": action,
+            "entityType": entity_type,
+            "data": result,
+            "success": result is not None,
+        }
+        if code is not None:
+            entry["code"] = code
+            entry["error"] = error
+        self.effect_results.append(entry)
         return result
 
     async def _execute_call_service(

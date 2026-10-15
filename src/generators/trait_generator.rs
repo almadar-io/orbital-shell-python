@@ -560,6 +560,7 @@ fn compile_leaf_effect(
             };
             let op_str = match operation {
                 OirPersistOp::Create => "create",
+                OirPersistOp::Upsert => "upsert",
                 OirPersistOp::Read => "read",
                 OirPersistOp::Update => "update",
                 OirPersistOp::Delete => "delete",
@@ -573,12 +574,39 @@ fn compile_leaf_effect(
                     code.push_str(&format!("{}_persist_data = {}\n", indent, data_code));
                     code.push_str(&format!("{}_persist_id = _persist_data.get(\"id\") if isinstance(_persist_data, dict) else None\n", indent));
                     code.push_str(&format!(
-                        "{}await self._repository.create(\"{}\", _persist_data)\n",
+                        "{}if _persist_id and await self._repository.get(\"{}\", _persist_id) is not None:\n",
                         indent, to_snake_case(resolved)
                     ));
                     code.push_str(&format!(
+                        "{}effect_results.append({{\"effect\": \"persist\", \"action\": \"create\", \"entityType\": \"{}\", \"success\": False, \"code\": \"duplicate-id\", \"error\": f\"{} {{_persist_id}} already exists\"}})\n",
+                        inner, resolved, resolved
+                    ));
+                    code.push_str(&format!("{}else:\n", indent));
+                    code.push_str(&format!(
+                        "{}await self._repository.create(\"{}\", _persist_data)\n",
+                        inner, to_snake_case(resolved)
+                    ));
+                    code.push_str(&format!(
                         "{}effect_results.append({{\"effect\": \"persist\", \"action\": \"create\", \"entityType\": \"{}\", \"success\": True, \"data\": _persist_data}})\n",
-                        indent, resolved
+                        inner, resolved
+                    ));
+                }
+                OirPersistOp::Upsert => {
+                    code.push_str(&format!("{}_upsert_data = {}\n", indent, data_code));
+                    code.push_str(&format!("{}_upsert_id = _upsert_data.get(\"id\") if isinstance(_upsert_data, dict) else None\n", indent));
+                    code.push_str(&format!("{}if _upsert_id:\n", indent));
+                    code.push_str(&format!(
+                        "{}_upsert_row = await self._repository.upsert(\"{}\", _upsert_data)\n",
+                        inner, to_snake_case(resolved)
+                    ));
+                    code.push_str(&format!(
+                        "{}effect_results.append({{\"effect\": \"persist\", \"action\": \"upsert\", \"entityType\": \"{}\", \"success\": True, \"data\": _upsert_row}})\n",
+                        inner, resolved
+                    ));
+                    code.push_str(&format!("{}else:\n", indent));
+                    code.push_str(&format!(
+                        "{}effect_results.append({{\"effect\": \"persist\", \"action\": \"upsert\", \"entityType\": \"{}\", \"success\": False, \"code\": \"no-row-key\", \"error\": \"persist upsert {} resolved no row key\"}})\n",
+                        inner, resolved, resolved
                     ));
                 }
                 OirPersistOp::Update => {
@@ -679,6 +707,13 @@ fn compile_leaf_effect(
                 "{}# {}\n",
                 indent,
                 orbital_core::unsupported_operator_marker("cancel-call")
+            ));
+        }
+        OirEffect::Http { .. } => {
+            code.push_str(&format!(
+                "{}# {}\n",
+                indent,
+                orbital_core::unsupported_operator_marker("http")
             ));
         }
         OirEffect::Set { target, value, .. } => {
@@ -856,6 +891,46 @@ fn compile_substrate_service_call(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use orbital_core::ir::OirExpr;
+
+    fn persist_py(operation: OirPersistOp) -> String {
+        let effect = OirEffect::Persist {
+            operation,
+            entity_type: "RawiMix".to_string(),
+            data: OirExpr::binding(orbital_core::ir::OirBinding::payload(vec!["row".to_string()])),
+            emit: None,
+        };
+        compile_leaf_effect(&effect, &CodegenContext::new(), &OirTrait::new("Mixer"), "        ")
+    }
+
+    #[test]
+    fn a_create_on_a_taken_id_is_reported_duplicate_id_and_writes_nothing() {
+        let py = persist_py(OirPersistOp::Create);
+        assert!(py.contains("if _persist_id and await self._repository.get(\"rawi_mix\", _persist_id) is not None:"), "{py}");
+        assert!(py.contains("\"code\": \"duplicate-id\""), "{py}");
+        let taken = py.find("duplicate-id").unwrap();
+        let write = py.find("await self._repository.create(").unwrap();
+        assert!(taken < write, "the duplicate branch precedes the create:\n{py}");
+        assert!(py.contains("        else:\n            await self._repository.create("), "the create sits in the else branch:\n{py}");
+    }
+
+    #[test]
+    fn an_upsert_is_one_repository_upsert_and_an_idless_row_is_no_row_key() {
+        let py = persist_py(OirPersistOp::Upsert);
+        assert!(py.contains("await self._repository.upsert(\"rawi_mix\", _upsert_data)"), "{py}");
+        assert!(py.contains("\"action\": \"upsert\""), "{py}");
+        assert!(py.contains("\"code\": \"no-row-key\""), "{py}");
+        assert!(!py.contains("_repository.create("), "an upsert never calls the store create:\n{py}");
+    }
+
+    #[test]
+    fn control_an_update_is_unchanged() {
+        let py = persist_py(OirPersistOp::Update);
+        assert!(py.contains("await self._repository.update("), "{py}");
+        assert!(!py.contains("duplicate-id"), "{py}");
+    }
+
     #[test]
     fn test_to_snake_case() {
         use orbital_core::str_utils::to_snake_case;

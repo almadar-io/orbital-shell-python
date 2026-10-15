@@ -5,7 +5,7 @@ Tests for core/repository.py - Database abstraction layer.
 """
 
 import pytest
-from orbital_app.core.repository import InMemoryRepository
+from orbital_app.core.repository import DuplicateIdError, InMemoryRepository
 
 
 class TestInMemoryRepository:
@@ -33,6 +33,34 @@ class TestInMemoryRepository:
         result = await repository.create("Task", data)
 
         assert result["id"] == "custom-id"
+
+    @pytest.mark.asyncio
+    async def test_create_on_a_taken_id_fails_and_leaves_the_row(self, repository):
+        """A create naming an id the store holds raises and changes nothing."""
+        await repository.create("Task", {"id": "mix", "name": "one"})
+
+        with pytest.raises(DuplicateIdError):
+            await repository.create("Task", {"id": "mix", "name": "two"})
+
+        assert (await repository.get("Task", "mix"))["name"] == "one"
+        # control: a create naming no id is minted one and never collides
+        first = await repository.create("Task", {"name": "free"})
+        second = await repository.create("Task", {"name": "free"})
+        assert first["id"] != second["id"]
+
+    @pytest.mark.asyncio
+    async def test_upsert_creates_then_replaces_the_whole_row_keeping_created_at(self, repository):
+        """An upsert on a free id creates; on a taken id it replaces and keeps createdAt."""
+        await repository.upsert(
+            "Task", {"id": "mix", "name": "one", "tone": "warm", "createdAt": "2026-01-01"}
+        )
+        replaced = await repository.upsert(
+            "Task", {"id": "mix", "name": "two", "createdAt": "2030-01-01"}
+        )
+
+        assert replaced == {"id": "mix", "name": "two", "createdAt": "2026-01-01"}
+        assert await repository.get("Task", "mix") == replaced
+        assert len(await repository.list("Task")) == 1
 
     @pytest.mark.asyncio
     async def test_get_entity(self, repository):
