@@ -737,6 +737,15 @@ fn compile_leaf_effect(
                 orbital_core::unsupported_operator_marker("credential-forget")
             ));
         }
+        OirEffect::OAuthAuthorize { .. }
+        | OirEffect::OAuthConnectionStatus { .. }
+        | OirEffect::OAuthConnectionForget { .. } => {
+            code.push_str(&format!(
+                "{}# {}\n",
+                indent,
+                orbital_core::unsupported_operator_marker(effect.kind())
+            ));
+        }
         OirEffect::Set { target, value, .. } => {
             let target_code = compile_binding_to_py(target, ctx);
             let value_code = compile_expr_to_py(value, ctx);
@@ -816,6 +825,8 @@ fn compile_leaf_effect(
         | OirEffect::BrowserClipboardRead { .. }
         | OirEffect::BrowserClipboardWrite { .. }
         | OirEffect::BrowserGeolocationCurrent { .. }
+        | OirEffect::BrowserPageFacts { .. }
+        | OirEffect::BrowserBeacon { .. }
         | OirEffect::BrowserPushSubscribe { .. } => {
             let compiled = compile_expr_to_py(&OirExpr::Effect { effect: Box::new(effect.clone()) }, ctx);
             code.push_str(&format!(

@@ -2192,6 +2192,11 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         OirEffect::CredentialForget { .. } => {
             format!("# {}", orbital_core::unsupported_operator_marker("credential-forget"))
         }
+        OirEffect::OAuthAuthorize { .. }
+        | OirEffect::OAuthConnectionStatus { .. }
+        | OirEffect::OAuthConnectionForget { .. } => {
+            format!("# {}", orbital_core::unsupported_operator_marker(effect.kind()))
+        }
         OirEffect::Spawn { entity_type, props } => {
             let props_code = compile_expr_to_py(props, ctx);
             format!("spawn(\"{}\", {})", entity_type, props_code)
@@ -2340,6 +2345,15 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
             ),
             None => "# client-device: browser/geolocation-current".to_string(),
         },
+        OirEffect::BrowserPageFacts { fields, .. } => {
+            let words: Vec<&str> = fields.iter().map(|f| f.as_str()).collect();
+            format!("# client-device: browser/page-facts([{}])", words.join(", "))
+        }
+        OirEffect::BrowserBeacon { url, request, .. } => format!(
+            "# client-device: browser/beacon({}, {})",
+            compile_expr_to_py(url, ctx),
+            compile_expr_to_py(request, ctx)
+        ),
     }
 }
 
