@@ -3,10 +3,10 @@
 //! Compiles OirExpr to Python code, with special handling for neural network
 //! and tensor operations that compile to PyTorch.
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirBinaryOp, OirBinding, OirBindingRoot, OirEffect, OirExpr, OirPattern, OirUnaryOp,
 };
-use orbital_core::str_utils::escape_python_string;
+use orbital_core_base::str_utils::escape_python_string;
 use std::collections::HashMap;
 
 /// Context for code generation
@@ -124,7 +124,7 @@ pub fn compile_expr_to_py(expr: &OirExpr, ctx: &CodegenContext) -> String {
 }
 
 /// Compile a dict literal
-fn compile_dict_literal(fields: &orbital_core::ir::OirFields, ctx: &CodegenContext) -> String {
+fn compile_dict_literal(fields: &orbital_core_base::ir::OirFields, ctx: &CodegenContext) -> String {
     if fields.is_empty() {
         return "{}".to_string();
     }
@@ -2049,7 +2049,7 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             let fn_name = function.replace('/', "_").replace('-', "_");
             format!(
                 "# {} — {}({})",
-                orbital_core::unsupported_operator_marker(function),
+                orbital_core_base::generate::unsupported_operator_marker(function),
                 fn_name,
                 compiled_args.join(", ")
             )
@@ -2061,7 +2061,7 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
             let fn_name = function.replace('/', "_").replace('-', "_");
             format!(
                 "# {} — {}({})",
-                orbital_core::unsupported_operator_marker(function),
+                orbital_core_base::generate::unsupported_operator_marker(function),
                 fn_name,
                 compiled_args.join(", ")
             )
@@ -2170,35 +2170,35 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         OirEffect::PersistBatch { .. } => {
             format!(
                 "# {} ({})",
-                orbital_core::unsupported_operator_marker("persist batch"),
+                orbital_core_base::generate::unsupported_operator_marker("persist batch"),
                 PUSHDOWN_STATUS
             )
         }
         OirEffect::CancelCall { .. } => {
             format!(
                 "# {}",
-                orbital_core::unsupported_operator_marker("cancel-call")
+                orbital_core_base::generate::unsupported_operator_marker("cancel-call")
             )
         }
         OirEffect::Http { .. } => {
-            format!("# {}", orbital_core::unsupported_operator_marker("http"))
+            format!("# {}", orbital_core_base::generate::unsupported_operator_marker("http"))
         }
         OirEffect::RandomBytes { .. } => {
-            format!("# {}", orbital_core::unsupported_operator_marker("random-bytes"))
+            format!("# {}", orbital_core_base::generate::unsupported_operator_marker("random-bytes"))
         }
         OirEffect::Os { .. } => {
-            format!("# {}", orbital_core::unsupported_operator_marker(effect.kind()))
+            format!("# {}", orbital_core_base::generate::unsupported_operator_marker(effect.kind()))
         }
         OirEffect::CredentialStatus { .. } => {
-            format!("# {}", orbital_core::unsupported_operator_marker("credential-status"))
+            format!("# {}", orbital_core_base::generate::unsupported_operator_marker("credential-status"))
         }
         OirEffect::CredentialForget { .. } => {
-            format!("# {}", orbital_core::unsupported_operator_marker("credential-forget"))
+            format!("# {}", orbital_core_base::generate::unsupported_operator_marker("credential-forget"))
         }
         OirEffect::OAuthAuthorize { .. }
         | OirEffect::OAuthConnectionStatus { .. }
         | OirEffect::OAuthConnectionForget { .. } => {
-            format!("# {}", orbital_core::unsupported_operator_marker(effect.kind()))
+            format!("# {}", orbital_core_base::generate::unsupported_operator_marker(effect.kind()))
         }
         OirEffect::Spawn { entity_type, props } => {
             let props_code = compile_expr_to_py(props, ctx);
@@ -2375,9 +2375,9 @@ fn compile_pattern(pattern: &OirPattern) -> String {
 }
 
 /// Compile an OirValue to Python
-fn compile_oir_value(value: &orbital_core::ir::OirValue) -> String {
-    use orbital_core::ir::OirValue;
-    if let Some(data) = orbital_core::schema::quote::quoted_oir_value(value) {
+fn compile_oir_value(value: &orbital_core_base::ir::OirValue) -> String {
+    use orbital_core_base::ir::OirValue;
+    if let Some(data) = orbital_core_base::schema::quote::quoted_oir_value(value) {
         return compile_oir_value(&data);
     }
     match value {
@@ -2439,7 +2439,7 @@ mod tests {
     #[test]
     fn navigate_with_payload_emits_params_in_python() {
         let ctx = CodegenContext::default();
-        let mut fields = orbital_core::ir::OirFields::new();
+        let mut fields = orbital_core_base::ir::OirFields::new();
         fields.insert(
             "id".to_string(),
             OirExpr::String {
@@ -2491,7 +2491,7 @@ mod tests {
     fn http_is_not_silently_dropped_by_the_python_shell() {
         let ctx = CodegenContext::default();
         let effect = OirEffect::http(
-            orbital_core::runtime::http_request::HttpMethod::Get,
+            orbital_core_base::http_wire::HttpMethod::Get,
             OirExpr::string("https://api.example.com"),
             OirExpr::string("/x"),
         );
@@ -2525,7 +2525,7 @@ mod tests {
     fn os_effects_are_not_silently_dropped_by_the_python_shell() {
         let ctx = CodegenContext::default();
         let effect = OirEffect::os(
-            orbital_core::runtime::os::OsOp::ReadFile,
+            orbital_core_base::os::OsOp::ReadFile,
             vec![OirExpr::string("/data/secret.txt")],
             None,
             None,
@@ -2560,12 +2560,12 @@ mod tests {
     /// G-CROSS-041: a quoted pattern-config value is written as the data it holds.
     #[test]
     fn a_quoted_literal_compiles_to_its_data() {
-        use orbital_core::ir::OirValue;
-        let sexpr: orbital_core::schema::SExpression =
+        use orbital_core_base::ir::OirValue;
+        let sexpr: orbital_core_base::schema::SExpression =
             serde_json::from_str(r#"[">", "@payload.amount", 0]"#).unwrap();
         let quoted = OirValue::Array(vec![
             OirValue::String("quote".into()),
-            OirValue::String(orbital_core::schema::quote::encode_quote_body(&sexpr)),
+            OirValue::String(orbital_core_base::schema::quote::encode_quote_body(&sexpr)),
         ]);
         assert_eq!(compile_oir_value(&quoted), r#"[">", "@payload.amount", 0]"#);
         let list = OirValue::Array(vec![
@@ -2581,7 +2581,7 @@ mod tests {
     fn compiled_quote_decodes_the_shared_fixture() {
         let ctx = CodegenContext::default();
         let cases: Vec<serde_json::Value> =
-            serde_json::from_str(orbital_core::fixtures::quote_cases()).unwrap();
+            serde_json::from_str(orbital_core_base::fixtures::quote_cases()).unwrap();
         for case in cases {
             let body = case["body"].as_str().unwrap().to_string();
             let py = compile_function_call("quote", &[OirExpr::String { value: body }], &ctx);
@@ -2605,13 +2605,13 @@ mod tests {
     fn python_dispatch_covers_every_canonical_python_operator() {
         let ctx = CodegenContext::default();
         let mut missing = Vec::new();
-        for name in orbital_core::language::registry::operators().keys() {
-            if !orbital_core::language::registry::is_python_target(name) {
+        for name in orbital_core_base::language::registry::operators().keys() {
+            if !orbital_core_base::language::registry::is_python_target(name) {
                 continue;
             }
             let out = compile_function_call(name, &[], &ctx);
-            if out.contains(orbital_core::UNSUPPORTED_OPERATOR_MARKER) {
-                let cat = orbital_core::language::registry::get_operator(name)
+            if out.contains(orbital_core_base::generate::UNSUPPORTED_OPERATOR_MARKER) {
+                let cat = orbital_core_base::language::registry::get_operator(name)
                     .map(|o| o.category.as_str())
                     .unwrap_or("?");
                 missing.push(format!("{name} ({cat})"));

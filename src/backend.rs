@@ -9,9 +9,9 @@
 //! - tests/ - Pytest test files
 
 use crate::generators::{generate_entities, generate_tests, generate_traits};
-use orbital_core::generate::{Backend, GeneratedFile, GeneratedOutput};
-use orbital_core::ir::{OirModule, OirTrait};
-use orbital_core::str_utils::{to_kebab_case_simple, to_snake_case};
+use orbital_core_base::generate::{Backend, GeneratedFile, GeneratedOutput};
+use orbital_core_base::ir::{OirModule, OirTrait};
+use orbital_core_base::str_utils::{to_kebab_case_simple, to_snake_case};
 
 /// Python code generation backend
 pub struct PythonBackend {
@@ -2070,9 +2070,9 @@ impl Backend for PythonBackend {
     fn generate_with_mode(
         &self,
         module: &OirModule,
-        mode: orbital_core::generate::ShellMode,
+        mode: orbital_core_base::generate::ShellMode,
     ) -> GeneratedOutput {
-        use orbital_core::generate::ShellMode;
+        use orbital_core_base::generate::ShellMode;
 
         let mut files = Vec::new();
 
@@ -2197,7 +2197,7 @@ mod tests {
 
     #[test]
     fn test_to_snake_case() {
-        use orbital_core::str_utils::to_snake_case;
+        use orbital_core_base::str_utils::to_snake_case;
         assert_eq!(to_snake_case("HelloWorld"), "hello_world");
         assert_eq!(to_snake_case("NeuralProposer"), "neural_proposer");
     }
@@ -2209,7 +2209,7 @@ mod tests {
     /// without requiring a full FastAPI install.
     #[test]
     fn test_generated_routes_are_valid_python() {
-        use orbital_core::ir::{OirEntity, OirEvent, OirModule, OirPersistence, OirState, OirTrait};
+        use orbital_core_base::ir::{OirEntity, OirEvent, OirModule, OirPersistence, OirState, OirTrait};
 
         let mut entity = OirEntity::new("Config");
         entity.persistence = OirPersistence::Runtime;

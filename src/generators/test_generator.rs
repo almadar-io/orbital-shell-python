@@ -3,11 +3,11 @@
 //! Generates pytest test files for the generated code, including
 //! State Machine Exhaustion Tests for comprehensive trait coverage.
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirBinaryOp, OirBindingRoot, OirEffect, OirEntity, OirExpr, OirModule,
     OirTrait, OirTransition, OirTransitionFrom,
 };
-use orbital_core::str_utils::to_snake_case;
+use orbital_core_base::str_utils::to_snake_case;
 
 /// Generated test file
 pub struct GeneratedTest {
@@ -1810,7 +1810,7 @@ mod tests {
 
     #[test]
     fn test_to_snake_case() {
-        use orbital_core::str_utils::to_snake_case;
+        use orbital_core_base::str_utils::to_snake_case;
         assert_eq!(to_snake_case("HelloWorld"), "hello_world");
         assert_eq!(to_snake_case("SensorProcessor"), "sensor_processor");
     }

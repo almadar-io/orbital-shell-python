@@ -1,7 +1,7 @@
 //! `orb-shell-python`: the Python shell as a program (`orbital_core::shell_protocol`).
 
-use orbital_core::project::write_project;
-use orbital_core::shell_protocol::{
+use orbital_core_base::project::write_project;
+use orbital_core_base::shell_protocol::{
     description, written_files, GenerateRequest, GenerateResponse, ShellDescription, ShellFailure, ShellProgram,
 };
 use std::path::Path;
@@ -27,8 +27,8 @@ impl ShellProgram for PythonProgram {
         })
     }
 
-    fn emit(&self, request: &GenerateRequest) -> Result<orbital_core::generate::GeneratedOutput, ShellFailure> {
-        use orbital_core::generate::Backend as _;
+    fn emit(&self, request: &GenerateRequest) -> Result<orbital_core_base::generate::GeneratedOutput, ShellFailure> {
+        use orbital_core_base::generate::Backend as _;
         Ok(crate::PythonBackend::new().generate(&request.module))
     }
 }

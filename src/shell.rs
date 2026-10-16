@@ -3,7 +3,7 @@
 //! Implements the Shell trait for Python/PyTorch projects.
 //! Generates FastAPI backend with PyTorch for ML simulation.
 
-use orbital_core::shell::{Shell, ShellError};
+use orbital_core_base::shell::{Shell, ShellError};
 use std::path::{Path, PathBuf};
 
 /// Python shell for PyTorch ML simulation backend
@@ -26,7 +26,7 @@ impl PythonShell {
     /// scaffold under `templates/`, like every other shell.
     fn find_template_path() -> PathBuf {
         // The one template lookup (`ORBITAL_SHELLS_DIR` → beside the binary → the checkout).
-        orbital_core::renderer_packs::shell_template("python-shell", std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+        orbital_core_base::renderer_packs::shell_template("python-shell", std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
     }
 
     /// Create with explicit template path

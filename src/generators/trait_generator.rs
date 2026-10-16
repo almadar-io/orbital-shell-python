@@ -3,11 +3,11 @@
 //! Generates state machine classes from OIR traits.
 
 use crate::codegen::{compile_binding_to_py, compile_expr_to_py, CodegenContext};
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     is_substrate_operator, OirEffect, OirEmitConfig, OirExpr, OirModule, OirPersistOp, OirTrait,
     OirTransition, OirTransitionFrom,
 };
-use orbital_core::str_utils::to_snake_case;
+use orbital_core_base::str_utils::to_snake_case;
 
 /// Generate trait state machine classes
 pub fn generate_traits(module: &OirModule) -> Vec<(String, String)> {
@@ -699,49 +699,49 @@ fn compile_leaf_effect(
             code.push_str(&format!(
                 "{}# {}\n",
                 indent,
-                orbital_core::unsupported_operator_marker("persist batch")
+                orbital_core_base::generate::unsupported_operator_marker("persist batch")
             ));
         }
         OirEffect::CancelCall { .. } => {
             code.push_str(&format!(
                 "{}# {}\n",
                 indent,
-                orbital_core::unsupported_operator_marker("cancel-call")
+                orbital_core_base::generate::unsupported_operator_marker("cancel-call")
             ));
         }
         OirEffect::Http { .. } => {
             code.push_str(&format!(
                 "{}# {}\n",
                 indent,
-                orbital_core::unsupported_operator_marker("http")
+                orbital_core_base::generate::unsupported_operator_marker("http")
             ));
         }
         OirEffect::RandomBytes { .. } => {
             code.push_str(&format!(
                 "{}# {}\n",
                 indent,
-                orbital_core::unsupported_operator_marker("random-bytes")
+                orbital_core_base::generate::unsupported_operator_marker("random-bytes")
             ));
         }
         OirEffect::Os { .. } => {
             code.push_str(&format!(
                 "{}# {}\n",
                 indent,
-                orbital_core::unsupported_operator_marker(effect.kind())
+                orbital_core_base::generate::unsupported_operator_marker(effect.kind())
             ));
         }
         OirEffect::CredentialStatus { .. } => {
             code.push_str(&format!(
                 "{}# {}\n",
                 indent,
-                orbital_core::unsupported_operator_marker("credential-status")
+                orbital_core_base::generate::unsupported_operator_marker("credential-status")
             ));
         }
         OirEffect::CredentialForget { .. } => {
             code.push_str(&format!(
                 "{}# {}\n",
                 indent,
-                orbital_core::unsupported_operator_marker("credential-forget")
+                orbital_core_base::generate::unsupported_operator_marker("credential-forget")
             ));
         }
         OirEffect::OAuthAuthorize { .. }
@@ -750,7 +750,7 @@ fn compile_leaf_effect(
             code.push_str(&format!(
                 "{}# {}\n",
                 indent,
-                orbital_core::unsupported_operator_marker(effect.kind())
+                orbital_core_base::generate::unsupported_operator_marker(effect.kind())
             ));
         }
         OirEffect::Set { target, value, .. } => {
@@ -876,7 +876,7 @@ fn compile_leaf_effect(
 /// Python shell's injected service client).
 fn compile_substrate_service_call(
     name: &str,
-    args: &orbital_core::ir::OirFields,
+    args: &orbital_core_base::ir::OirFields,
     emit: Option<&OirEmitConfig>,
     ctx: &CodegenContext,
     indent: &str,
@@ -931,13 +931,13 @@ fn compile_substrate_service_call(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core::ir::OirExpr;
+    use orbital_core_base::ir::OirExpr;
 
     fn persist_py(operation: OirPersistOp) -> String {
         let effect = OirEffect::Persist {
             operation,
             entity_type: "RawiMix".to_string(),
-            data: OirExpr::binding(orbital_core::ir::OirBinding::payload(vec!["row".to_string()])),
+            data: OirExpr::binding(orbital_core_base::ir::OirBinding::payload(vec!["row".to_string()])),
             emit: None,
         };
         compile_leaf_effect(&effect, &CodegenContext::new(), &OirTrait::new("Mixer"), "        ")
@@ -972,7 +972,7 @@ mod tests {
 
     #[test]
     fn test_to_snake_case() {
-        use orbital_core::str_utils::to_snake_case;
+        use orbital_core_base::str_utils::to_snake_case;
         assert_eq!(to_snake_case("HelloWorld"), "hello_world");
         assert_eq!(to_snake_case("NeuralProposer"), "neural_proposer");
         assert_eq!(to_snake_case("simple"), "simple");

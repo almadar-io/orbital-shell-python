@@ -2,11 +2,11 @@
 //!
 //! Generates Pydantic models from OIR entities.
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     classify_type, render_default, render_type, OirEntity, OirField, OirModule, OirType,
     TargetLiteralRenderer, TargetTypeRenderer, TypeMappingClass,
 };
-use orbital_core::str_utils::{split_to_pascal_case, to_pascal_case, to_snake_case};
+use orbital_core_base::str_utils::{split_to_pascal_case, to_pascal_case, to_snake_case};
 
 /// The `{Entity}{Field}` enum name a field-level `enum_values` sidecar
 /// names — mirrors Android's `enum_class_name` (gaps §130 item 1).
@@ -578,7 +578,7 @@ pub fn generate_entity_input(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core::ir::OirValue;
+    use orbital_core_base::ir::OirValue;
 
     #[test]
     fn a_row_renders_the_entity_model_where_a_reference_renders_an_id() {
@@ -604,7 +604,7 @@ mod tests {
 
     #[test]
     fn row_classifies_faithful() {
-        use orbital_core::ir::classify_type;
+        use orbital_core_base::ir::classify_type;
         let hoisted = std::cell::RefCell::new(Vec::new());
         let r = PythonRenderer {
             context_name: "Ctx".to_string(),
@@ -878,12 +878,12 @@ mod tests {
     fn mismatched_default_embeds_marker() {
         let mut entity = OirEntity::new("Task");
         let mut f = OirField::new("owner", OirType::reference("User"));
-        f.default = Some(OirValue::Object(orbital_core::ir::OirObject::new()));
+        f.default = Some(OirValue::Object(orbital_core_base::ir::OirObject::new()));
         entity.fields.push(f);
 
         let code = generate_entity(&entity);
         assert!(
-            code.contains(orbital_core::ir::LITERAL_TYPE_MISMATCH_MARKER),
+            code.contains(orbital_core_base::ir::LITERAL_TYPE_MISMATCH_MARKER),
             "mismatch must embed the marker:\n{code}"
         );
         assert!(
