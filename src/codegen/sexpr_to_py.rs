@@ -2186,6 +2186,9 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         OirEffect::RandomBytes { .. } => {
             format!("# {}", orbital_core::unsupported_operator_marker("random-bytes"))
         }
+        OirEffect::Os { .. } => {
+            format!("# {}", orbital_core::unsupported_operator_marker(effect.kind()))
+        }
         OirEffect::CredentialStatus { .. } => {
             format!("# {}", orbital_core::unsupported_operator_marker("credential-status"))
         }
@@ -2516,6 +2519,23 @@ mod tests {
             );
             assert!(!out.contains("tok") && !out.contains("16"), "{out}");
         }
+    }
+
+    #[test]
+    fn os_effects_are_not_silently_dropped_by_the_python_shell() {
+        let ctx = CodegenContext::default();
+        let effect = OirEffect::os(
+            orbital_core::runtime::os::OsOp::ReadFile,
+            vec![OirExpr::string("/data/secret.txt")],
+            None,
+            None,
+        );
+        let out = compile_effect(&effect, &ctx);
+        assert!(
+            out.contains("UNSUPPORTED operator: os/read-file"),
+            "python has no os host; the refusal must be loud, got: {out}"
+        );
+        assert!(!out.contains("secret.txt"), "{out}");
     }
 
     #[test]

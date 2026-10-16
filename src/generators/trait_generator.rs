@@ -723,6 +723,13 @@ fn compile_leaf_effect(
                 orbital_core::unsupported_operator_marker("random-bytes")
             ));
         }
+        OirEffect::Os { .. } => {
+            code.push_str(&format!(
+                "{}# {}\n",
+                indent,
+                orbital_core::unsupported_operator_marker(effect.kind())
+            ));
+        }
         OirEffect::CredentialStatus { .. } => {
             code.push_str(&format!(
                 "{}# {}\n",
