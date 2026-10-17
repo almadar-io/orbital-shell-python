@@ -2033,6 +2033,12 @@ fn compile_function_call(function: &str, args: &[OirExpr], ctx: &CodegenContext)
                 "[0, 0]".to_string()
             }
         }
+        // The kernel contract for `(as v CallKey)`: the value unchanged when it is a non-empty string,
+        // an error otherwise. The target name is the SHAPE argument, not an operand.
+        "as" if !compiled_args.is_empty() => format!(
+            "(lambda __v: __v if isinstance(__v, str) and __v != \"\" else (_ for _ in ()).throw(ValueError(\"as: a CallKey must be a non-empty string\")))({})",
+            compiled_args[0]
+        ),
         "prob/histogram" => {
             if compiled_args.len() >= 2 {
                 format!("prob_histogram({}, {})", compiled_args[0], compiled_args[1])
@@ -2183,6 +2189,12 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         OirEffect::Http { .. } => {
             format!("# {}", orbital_core_base::generate::unsupported_operator_marker("http"))
         }
+        OirEffect::Redis { .. } => {
+            format!("# {}", orbital_core_base::generate::unsupported_operator_marker("redis"))
+        }
+        OirEffect::Postgres { .. } => {
+            format!("# {}", orbital_core_base::generate::unsupported_operator_marker("postgres"))
+        }
         OirEffect::RandomBytes { .. } => {
             format!("# {}", orbital_core_base::generate::unsupported_operator_marker("random-bytes"))
         }
@@ -2195,7 +2207,8 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         OirEffect::CredentialForget { .. } => {
             format!("# {}", orbital_core_base::generate::unsupported_operator_marker("credential-forget"))
         }
-        OirEffect::OAuthAuthorize { .. }
+        OirEffect::CredentialAdmin { .. }
+        | OirEffect::OAuthAuthorize { .. }
         | OirEffect::OAuthConnectionStatus { .. }
         | OirEffect::OAuthConnectionForget { .. } => {
             format!("# {}", orbital_core_base::generate::unsupported_operator_marker(effect.kind()))
@@ -2358,6 +2371,9 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
         OirEffect::BrowserEmbed { texts, .. } => {
             format!("# client-device: browser/embed({})", compile_expr_to_py(texts, ctx))
         }
+        OirEffect::BrowserTab { op, request, .. } => {
+            format!("# client-device: {}({})", op.name(), compile_expr_to_py(request, ctx))
+        }
     }
 }
 
@@ -2511,6 +2527,8 @@ mod tests {
             ("random-bytes", OirEffect::random_bytes(OirExpr::number(16.0), None)),
             ("credential-status", OirEffect::credential_status(OirExpr::string("tok"), None)),
             ("credential-forget", OirEffect::credential_forget(OirExpr::string("tok"), None)),
+            ("postgres", OirEffect::postgres(OirExpr::string("postgres://tok.internal"), OirExpr::string("SELECT 1"), OirExpr::Array { items: vec![] })),
+            ("redis", OirEffect::redis(OirExpr::string("redis://tok.internal"), OirExpr::Array { items: vec![OirExpr::string("PING")] })),
         ];
         for (name, effect) in effects {
             let out = compile_effect(&effect, &ctx);
@@ -2558,6 +2576,32 @@ mod tests {
     // filtered by `target` is the closed set that stands in for the enum: any
     // python-target op that falls through to the UNSUPPORTED catch-all fails this
     // test with zero behaviors compiled.
+    /// `(as v CallKey)` follows the kernel contract on Python too: the same non-empty string, or an error.
+    #[test]
+    fn the_as_cast_to_call_key_keeps_a_non_empty_string_and_refuses_the_rest() {
+        let ctx = CodegenContext::default();
+        let run = |value: OirExpr| {
+            let py = compile_function_call(
+                "as",
+                &[value, OirExpr::String { value: "CallKey".to_string() }],
+                &ctx,
+            );
+            assert!(!py.contains("UNSUPPORTED"), "{py}");
+            let script = format!("import sys\nsys.stdout.write({py})");
+            std::process::Command::new("python3")
+                .args(["-c", &script])
+                .output()
+                .expect("python3 must be on PATH to run the emitted cast")
+        };
+        let ok = run(OirExpr::String { value: "k1".to_string() });
+        assert!(ok.status.success(), "{}", String::from_utf8_lossy(&ok.stderr));
+        assert_eq!(String::from_utf8_lossy(&ok.stdout), "k1");
+        let empty = run(OirExpr::String { value: String::new() });
+        assert!(!empty.status.success(), "an empty CallKey must be refused");
+        let number = run(OirExpr::Number { value: 3.0 });
+        assert!(!number.status.success(), "a non-string must be refused");
+    }
+
     /// G-CROSS-041: a quoted pattern-config value is written as the data it holds.
     #[test]
     fn a_quoted_literal_compiles_to_its_data() {

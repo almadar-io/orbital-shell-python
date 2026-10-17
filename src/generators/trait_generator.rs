@@ -716,6 +716,20 @@ fn compile_leaf_effect(
                 orbital_core_base::generate::unsupported_operator_marker("http")
             ));
         }
+        OirEffect::Redis { .. } => {
+            code.push_str(&format!(
+                "{}# {}\n",
+                indent,
+                orbital_core_base::generate::unsupported_operator_marker("redis")
+            ));
+        }
+        OirEffect::Postgres { .. } => {
+            code.push_str(&format!(
+                "{}# {}\n",
+                indent,
+                orbital_core_base::generate::unsupported_operator_marker("postgres")
+            ));
+        }
         OirEffect::RandomBytes { .. } => {
             code.push_str(&format!(
                 "{}# {}\n",
@@ -744,7 +758,8 @@ fn compile_leaf_effect(
                 orbital_core_base::generate::unsupported_operator_marker("credential-forget")
             ));
         }
-        OirEffect::OAuthAuthorize { .. }
+        OirEffect::CredentialAdmin { .. }
+        | OirEffect::OAuthAuthorize { .. }
         | OirEffect::OAuthConnectionStatus { .. }
         | OirEffect::OAuthConnectionForget { .. } => {
             code.push_str(&format!(
@@ -836,6 +851,7 @@ fn compile_leaf_effect(
         | OirEffect::BrowserBeacon { .. }
         | OirEffect::BrowserPrompt { .. }
         | OirEffect::BrowserEmbed { .. }
+        | OirEffect::BrowserTab { .. }
         | OirEffect::BrowserPushSubscribe { .. } => {
             let compiled = compile_expr_to_py(&OirExpr::Effect { effect: Box::new(effect.clone()) }, ctx);
             code.push_str(&format!(
