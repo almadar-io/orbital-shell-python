@@ -2691,6 +2691,7 @@ mod tests {
             offset: None,
             limit: Some(OirExpr::Number { value: 5.0 }),
             include: None,
+            nearest: None,
             emit: None,
         };
         let out = compile_effect(&effect, &ctx);
