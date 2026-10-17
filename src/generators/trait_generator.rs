@@ -834,6 +834,8 @@ fn compile_leaf_effect(
         | OirEffect::BrowserGeolocationCurrent { .. }
         | OirEffect::BrowserPageFacts { .. }
         | OirEffect::BrowserBeacon { .. }
+        | OirEffect::BrowserPrompt { .. }
+        | OirEffect::BrowserEmbed { .. }
         | OirEffect::BrowserPushSubscribe { .. } => {
             let compiled = compile_expr_to_py(&OirExpr::Effect { effect: Box::new(effect.clone()) }, ctx);
             code.push_str(&format!(

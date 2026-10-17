@@ -2258,13 +2258,6 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
                 compile_expr_to_py(variable, ctx)
             )
         }
-        OirEffect::OsDebounce { ms, event_type } => {
-            format!(
-                "# server-side: os/debounce({}, {})",
-                compile_expr_to_py(ms, ctx),
-                compile_expr_to_py(event_type, ctx)
-            )
-        }
         OirEffect::Ref {
             entity_type, id, ..
         } => {
@@ -2357,6 +2350,14 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
             compile_expr_to_py(url, ctx),
             compile_expr_to_py(request, ctx)
         ),
+        OirEffect::BrowserPrompt { text, schema, .. } => format!(
+            "# client-device: browser/prompt({}, {})",
+            compile_expr_to_py(text, ctx),
+            compile_expr_to_py(schema, ctx)
+        ),
+        OirEffect::BrowserEmbed { texts, .. } => {
+            format!("# client-device: browser/embed({})", compile_expr_to_py(texts, ctx))
+        }
     }
 }
 
