@@ -34,13 +34,16 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy application code
+# Copy application code and the native kernel extension (kernel/, empty for a generated-host app)
 COPY src/ ./src/
+COPY kernel/ ./kernel/
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV ENVIRONMENT=production
+ENV NODE_ENV=production
+ENV ORBITAL_KERNEL_DIR=/app/kernel
 
 # Port (default 8000, Cloud Run overrides via PORT env var)
 ENV PORT=8000

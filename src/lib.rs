@@ -15,12 +15,13 @@
 #![allow(unexpected_cfgs)]
 
 mod backend;
+pub mod kernel_host;
 pub mod codegen;
 mod generators;
 mod shell;
 pub mod shell_program;
 
-pub use backend::PythonBackend;
+pub use backend::{KernelProject, PythonBackend};
 pub use codegen::*;
 pub use generators::*;
 pub use shell::PythonShell;

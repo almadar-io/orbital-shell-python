@@ -19,6 +19,14 @@ pub struct PythonBackend {
     pub type_hints: bool,
     /// Generate docstrings
     pub docstrings: bool,
+    /// The program and language a kernel-hosted project ships (`kernel_host`); absent, the generated host.
+    pub kernel: Option<KernelProject>,
+}
+
+/// The JSON texts of the resolved program and the language it runs against.
+pub struct KernelProject {
+    pub program: String,
+    pub language: String,
 }
 
 impl Default for PythonBackend {
@@ -26,6 +34,7 @@ impl Default for PythonBackend {
         Self {
             type_hints: true,
             docstrings: true,
+            kernel: None,
         }
     }
 }
@@ -2060,7 +2069,10 @@ def prob_histogram(samples: List[float], bins: int) -> Dict[str, list]:
 /// Implement the compiler's Backend trait
 impl Backend for PythonBackend {
     fn generate(&self, module: &OirModule) -> GeneratedOutput {
-        let files = self.generate_internal(module);
+        let files = match &self.kernel {
+            Some(project) => crate::kernel_host::files(module, &project.program, &project.language),
+            None => self.generate_internal(module),
+        };
         GeneratedOutput {
             files,
             warnings: vec![],
