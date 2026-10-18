@@ -73,7 +73,7 @@ def test_control_an_unknown_orbital_is_an_error_and_a_reset_starts_a_fresh_kerne
         host.dispatch("Nowhere", {"event": "SAVE"})
     host.dispatch("Main", {"event": "SAVE", "targetTrait": "Draft"})
     host.reset()
-    assert host.state("Draft") == "", "a fresh kernel holds no instance until its first event"
+    assert host.state("Draft") == "editing", "a fresh kernel is at the initial state"
     assert host.dispatch("Main", {"event": "SAVE", "targetTrait": "Draft"})["states"]["Draft"] == "saved"
 
 
@@ -93,5 +93,5 @@ def test_the_routes_serve_events_state_and_a_guarded_reset(host, monkeypatch):
     assert client.post("/api/draft/reset").status_code == 403
     monkeypatch.setenv("TESTING", "1")
     assert client.post("/api/draft/reset").status_code == 200
-    assert client.get("/api/draft/state").json() == {"state": ""}
+    assert client.get("/api/draft/state").json() == {"state": "editing"}
     assert client.post("/api/draft/events", json={}).json()["success"] is False

@@ -21,7 +21,7 @@ const KERNEL_EXTENSION: &str = if cfg!(windows) {
 fn host_option() -> ShellOption {
     ShellOption {
         name: HOST_OPTION.to_string(),
-        description: "Who runs the program: the native kernel, or the generated Python handlers. auto is the kernel unless the program uses a Python-only (ML) operator".to_string(),
+        description: "Who runs the program: the native kernel, or the generated Python handlers. auto is the kernel unless the program uses a Python-only (ML) operator, the one program class that stays on the generated handlers".to_string(),
         values: Some(vec!["auto".to_string(), "kernel".to_string(), "generated".to_string()]),
         default: Some("auto".to_string()),
     }
@@ -110,6 +110,8 @@ impl ShellProgram for PythonProgram {
         let mut warnings = generated.warnings.clone();
         if host == Host::Kernel {
             warnings.extend(ship_extension(output)?);
+        } else {
+            warnings.extend(kernel_host::generated_host_note(&request.module));
         }
         Ok(GenerateResponse {
             files: written_files(&generated),

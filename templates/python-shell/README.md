@@ -149,16 +149,11 @@ src/orbital_app/
 │   ├── repository.py    # Database abstraction (InMemory, Firestore)
 │   ├── bindings.py      # @entity, @payload, @user resolution
 │   └── firebase.py      # Firebase Admin SDK initialization
-├── middleware/          # FastAPI middleware
-│   └── auth.py          # Firebase authentication (@user context)
 ├── nn/                  # PyTorch neural network runtime
 │   ├── builder.py       # S-expr → PyTorch module
 │   ├── forward.py       # nn/forward inference
 │   ├── training.py      # train/loop training
 │   └── constraints.py   # Weight/gradient constraints
-├── tensor/              # Tensor operations
-│   ├── ops.py           # tensor/* operations
-│   └── contracts.py     # Input/output contracts
 └── generated/           # ← COMPILER OUTPUT
     ├── entities/        # Pydantic models
     ├── traits/          # State machines

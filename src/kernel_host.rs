@@ -86,6 +86,18 @@ pub fn choose(requested: &str, module: &OirModule) -> Result<Host, String> {
     }
 }
 
+/// The compile note for the one program class that does not run on the kernel: it names the Python-only operators.
+pub fn generated_host_note(module: &OirModule) -> Option<String> {
+    let python_only = python_only_operators(module);
+    if python_only.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "host=generated: the program uses the Python-only (machine-learning) operator(s) {}, which the native kernel does not evaluate, so it runs on the generated Python handlers; every other program runs on the kernel",
+        python_only.join(", ")
+    ))
+}
+
 /// The routes module of a kernel-hosted app: one `POST /<trait>/events` per trait, the contract the generated host
 /// serves, answered by `core.kernel_host`.
 fn routes(module: &OirModule) -> String {
@@ -157,6 +169,16 @@ mod tests {
         assert_eq!(choose("kernel", &module), Ok(Host::Kernel));
         assert_eq!(choose("generated", &module), Ok(Host::Generated));
         assert!(choose("maybe", &module).is_err());
+    }
+
+    #[test]
+    fn the_generated_host_note_names_the_ml_operators_and_is_absent_otherwise() {
+        let note = generated_host_note(&module_with("nn/linear")).expect("note");
+        assert!(
+            note.contains("nn/linear") && note.contains("every other program runs on the kernel"),
+            "{note}"
+        );
+        assert_eq!(generated_host_note(&module_with("+")), None);
     }
 
     #[test]
