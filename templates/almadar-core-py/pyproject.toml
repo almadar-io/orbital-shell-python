@@ -1,0 +1,15 @@
+[project]
+name = "almadar-core-py"
+version = "0.1.0"
+description = "Generated pydantic v2 mirror of @almadar/core's asset-domain zod schemas. Never hand-edit — see README.md."
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.5",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["almadar_core_py*"]
