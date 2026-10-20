@@ -53,31 +53,6 @@ fn kernel_project(request: &GenerateRequest) -> Result<KernelProject, ShellFailu
     Ok(KernelProject { program, language })
 }
 
-/// Copy the kernel extension that ships beside this program into `<output>/kernel/`; the project's note when it is absent.
-fn ship_extension(output: &Path) -> Result<Option<String>, ShellFailure> {
-    let beside = std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(|dir| dir.join(KERNEL_EXTENSION)));
-    let Some(source) = beside.filter(|path| path.exists()) else {
-        return Ok(Some(format!(
-            "{KERNEL_EXTENSION} is not beside this shell program; put it in kernel/ or set ORBITAL_KERNEL_DIR before running the app"
-        )));
-    };
-    let target = output.join("kernel");
-    std::fs::create_dir_all(&target).map_err(|e| {
-        ShellFailure::new(
-            CODE_GENERATE_FAILED,
-            format!("create {}: {e}", target.display()),
-        )
-    })?;
-    std::fs::copy(&source, target.join(KERNEL_EXTENSION)).map_err(|e| {
-        ShellFailure::new(
-            CODE_GENERATE_FAILED,
-            format!("copy {}: {e}", source.display()),
-        )
-    })?;
-    Ok(None)
-}
 
 impl ShellProgram for PythonProgram {
     fn describe(&self) -> ShellDescription {
@@ -109,7 +84,7 @@ impl ShellProgram for PythonProgram {
         )?;
         let mut warnings = generated.warnings.clone();
         if host == Host::Kernel {
-            warnings.extend(ship_extension(output)?);
+            warnings.extend(orbital_core_base::shell_protocol::ship_kernel_beside_program(KERNEL_EXTENSION, output)?);
         } else {
             warnings.extend(kernel_host::generated_host_note(&request.module));
         }

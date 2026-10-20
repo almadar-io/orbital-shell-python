@@ -1,7 +1,8 @@
 """
 Kernel host: the native kernel runs the program and answers every ask itself.
 
-The `orbital_kernel` extension holds the whole execution (guards, transitions, effects) and its I/O: rows from the
+The `orbital_kernel` extension runs the program on the native server (`NativeServer`, the routes `orb serve` serves) and holds
+the whole execution (guards, transitions, effects) and its I/O: rows from the
 store the environment selects (DATA_BACKEND, DATABASE_URL, COUCHDB_URL, the Firebase variables), `http` and `os/`
 under the program's own egress and grants, secrets and credentials from the environment, the clock and random bytes.
 This module loads it, serves its events and routes the live items a dispatch produces (a streaming call's messages to
@@ -25,6 +26,17 @@ from .websocket import connection_manager
 KERNEL_DIR_ENV = "ORBITAL_KERNEL_DIR"
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 GENERATED = Path(__file__).resolve().parents[1] / "generated"
+
+
+def catalogs_of(program: str, locales_dir: Path) -> Dict[str, Any]:
+    """The message catalogs of every locale the program declares, from the compile's `locales/`."""
+    catalogs: Dict[str, Any] = {}
+    for locale in json.loads(program).get("locales") or []:
+        file = locales_dir / f"{locale}.json"
+        if not file.is_file():
+            raise RuntimeError(f'the program declares locale "{locale}" but {file} is missing')
+        catalogs[locale] = json.loads(file.read_text(encoding="utf-8"))
+    return catalogs
 
 
 def load_extension(directory: Optional[Path] = None) -> Any:
@@ -51,39 +63,46 @@ class KernelHost:
         env: Dict[str, str],
         on_live: Optional[Callable[[str], None]] = None,
         directory: Optional[Path] = None,
+        catalogs: Optional[Dict[str, Any]] = None,
     ) -> None:
         self._kernel = load_extension(directory)
         self._kernel.install_language(language)
         self._program = program
         self._env = json.dumps(env)
+        self._catalogs = json.dumps(catalogs or {})
         self._on_live = on_live
         self._server = self._open()
 
     def _open(self) -> Any:
-        return self._kernel.Server.native(self._program, self._env, self._on_live)
+        return self._kernel.NativeServer.open(self._program, self._env, self._catalogs, self._on_live)
 
     @classmethod
     def from_project(cls, on_live: Optional[Callable[[str], None]] = None) -> "KernelHost":
         """The program and language the compile wrote under generated/, with the process environment."""
+        program = (GENERATED / "program.json").read_text(encoding="utf-8")
         return cls(
-            (GENERATED / "program.json").read_text(encoding="utf-8"),
+            program,
             (GENERATED / "language.json").read_text(encoding="utf-8"),
             dict(os.environ),
             on_live,
+            catalogs=catalogs_of(program, PROJECT_ROOT / "locales"),
         )
 
     def dispatch(self, orbital: str, request: Dict[str, Any], authorization: Optional[str] = None) -> Dict[str, Any]:
         """
-        Run one event to its response as the viewer `authorization` (an Authorization header value) names: the verified
-        bearer's @user, the anonymous viewer without one; a `user` in the request is dropped and an invalid bearer raises
-        PermissionError. The kernel answers its own asks, so a flight that still waits is an error.
+        Run one event through the server's `POST /api/orbitals/<orbital>/events` as the viewer `authorization` (an
+        Authorization header value) names; a `user` in the request is dropped. A dispatch, or a refusal of it (403), answers
+        with its response; a bearer that does not verify raises PermissionError, any other failure RuntimeError.
         """
-        progress = json.loads(self._server.start_as(orbital, json.dumps(request), authorization))
-        if progress["status"] != "done":
-            self._server.abandon(progress["flight"])
-            kinds = sorted({pending["request"]["kind"] for pending in progress["requests"]})
-            raise RuntimeError(f"the kernel asked the host for {', '.join(kinds)}, which the native host answers itself")
-        return progress["response"]
+        request = {k: v for k, v in request.items() if k != "user"}
+        headers = [("content-type", "application/json")] + ([("authorization", authorization)] if authorization else [])
+        status, _, body = self._server.handle("POST", f"/api/orbitals/{orbital}/events", headers, json.dumps(request).encode())
+        answer = json.loads(bytes(body))
+        if status == 401:
+            raise PermissionError(answer.get("error", "Unauthorized"))
+        if status != 403 and not 200 <= status < 300:
+            raise RuntimeError(answer.get("error", f"the server answered {status}"))
+        return answer
 
     def viewer(self, authorization: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """The user `authorization` names (the anonymous viewer without one), None when the program declares no sign-in."""
@@ -94,15 +113,14 @@ class KernelHost:
         return json.loads(self._server.live_recipients(item_json, json.dumps(connections)))
 
     def state(self, trait: str) -> str:
-        return self._server.get_state(trait)
+        return self._server.state(trait)
 
     def reset(self) -> None:
         """A fresh kernel on the same program: every trait back at its initial state, the store as the environment selects."""
-        self._server.free()
         self._server = self._open()
 
     def close(self) -> None:
-        self._server.free()
+        self._server = None
 
 
 class LiveHub:

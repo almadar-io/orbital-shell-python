@@ -129,11 +129,9 @@ def test_a_valid_bearer_is_that_viewers_user(app, token):
     assert response.status_code == 200 and emitted_id(response) == "uid-1"
 
 
-def test_control_no_bearer_is_the_anonymous_viewer_and_a_forged_body_user_is_ignored(app, token):
-    anonymous = who(app)
-    assert anonymous.status_code == 200 and emitted_id(anonymous) == "anonymous"
-    forged = who(app, user={"id": "mallory", "role": "admin"})
-    assert emitted_id(forged) == "anonymous", "the body user is never read"
+def test_control_under_sign_in_no_bearer_is_a_401_and_a_forged_body_user_is_ignored(app, token):
+    assert who(app).status_code == 401, "signed-out requests under sign-in are refused (as orbital-server does)"
+    assert who(app, user={"id": "mallory", "role": "admin"}).status_code == 401, "the body user is never read"
     signed_in = who(app, {"authorization": f"Bearer {token}"}, user={"id": "mallory"})
     assert emitted_id(signed_in) == "uid-1", "control: nor beside a valid bearer"
 
@@ -145,10 +143,11 @@ def test_an_invalid_bearer_is_a_401(app, token):
     assert who(app, {"authorization": token}).status_code == 401, "a header that is not a Bearer is refused"
 
 
-def create(client, row_id, visibility, owner):
+def create(client, token, row_id, visibility, owner):
     response = client.post(
         "/api/board/events",
         json={"event": "CREATE", "clientId": "writer", "payload": {"id": row_id, "visibility": visibility, "owner": owner}},
+        headers={"authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200 and response.json()["success"] is True, response.text
 
@@ -167,9 +166,9 @@ def drain(socket):
 
 def test_an_anonymous_socket_gets_only_the_public_row_and_a_signed_in_socket_its_own_as_well(app, token):
     with app.websocket_connect("/ws/live?clientId=reader") as anonymous, app.websocket_connect(f"/ws/live?clientId=member&token={token}") as member:
-        create(app, "n1", "public", "someone")
-        create(app, "n2", "private", "uid-1")
-        create(app, "n3", "private", "someone")
+        create(app, token, "n1", "public", "someone")
+        create(app, token, "n2", "private", "uid-1")
+        create(app, token, "n3", "private", "someone")
         assert drain(anonymous) == ["n1"]
         assert drain(member) == ["n1", "n2"]
 
