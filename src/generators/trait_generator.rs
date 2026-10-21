@@ -759,6 +759,7 @@ fn compile_leaf_effect(
             ));
         }
         OirEffect::CredentialAdmin { .. }
+        | OirEffect::AccessCheck { .. }
         | OirEffect::OAuthAuthorize { .. }
         | OirEffect::OAuthConnectionStatus { .. }
         | OirEffect::OAuthConnectionForget { .. } => {

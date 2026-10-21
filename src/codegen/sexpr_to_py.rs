@@ -2208,6 +2208,7 @@ fn compile_effect(effect: &OirEffect, ctx: &CodegenContext) -> String {
             format!("# {}", orbital_core_base::generate::unsupported_operator_marker("credential-forget"))
         }
         OirEffect::CredentialAdmin { .. }
+        | OirEffect::AccessCheck { .. }
         | OirEffect::OAuthAuthorize { .. }
         | OirEffect::OAuthConnectionStatus { .. }
         | OirEffect::OAuthConnectionForget { .. } => {
@@ -2527,6 +2528,7 @@ mod tests {
             ("random-bytes", OirEffect::random_bytes(OirExpr::number(16.0), None)),
             ("credential-status", OirEffect::credential_status(OirExpr::string("tok"), None)),
             ("credential-forget", OirEffect::credential_forget(OirExpr::string("tok"), None)),
+            ("access-check", OirEffect::access_check(OirExpr::string("tok"), None)),
             ("postgres", OirEffect::postgres(OirExpr::string("postgres://tok.internal"), OirExpr::string("SELECT 1"), OirExpr::Array { items: vec![] })),
             ("redis", OirEffect::redis(OirExpr::string("redis://tok.internal"), OirExpr::Array { items: vec![OirExpr::string("PING")] })),
         ];
