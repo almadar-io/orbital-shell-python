@@ -1,0 +1,20 @@
+[package]
+name = "orbital-python"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "The native Python extension of the Almadar kernel: the orbital-wasm server API as a CPython abi3 module, loaded by the generated Python app"
+publish = false
+
+[lib]
+name = "orbital_kernel"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+orbital-wasm = { path = "../../../../orbital-wasm" }
+orbital-server = { path = "../../../../orbital-server" }
+pyo3 = { version = "0.25", features = ["abi3-py310", "extension-module"] }
+serde_json = "1.0"
+
+[build-dependencies]
+pyo3-build-config = "0.25"
