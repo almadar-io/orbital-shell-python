@@ -254,7 +254,7 @@ impl TargetTypeRenderer for PythonRenderer<'_> {
     fn optional(&self, _inner_ty: &OirType, inner: String) -> String {
         format!("Optional[{}]", inner)
     }
-    fn struct_ty(&self, fields: &[OirField]) -> String {
+    fn struct_ty(&self, fields: &[OirField], _additional: Option<&OirType>) -> String {
         let name = self.context_name.clone();
         let parts: Vec<String> = fields
             .iter()
@@ -374,8 +374,8 @@ impl TargetTypeRenderer for PythonRenderer<'_> {
     fn classify_optional(&self, _inner_ty: &OirType, inner: TypeMappingClass) -> TypeMappingClass {
         inner
     }
-    fn classify_struct_ty(&self, _fields: &[OirField]) -> TypeMappingClass {
-        TypeMappingClass::Faithful
+    fn classify_struct_ty(&self, _fields: &[OirField], additional: Option<&OirType>) -> TypeMappingClass {
+        if additional.is_some() { TypeMappingClass::Lossy } else { TypeMappingClass::Faithful }
     }
     fn classify_union_ty(&self, variants: &[OirField]) -> TypeMappingClass {
         // typing.Union of the hoisted named models carries every variant's
@@ -668,7 +668,7 @@ mod tests {
         // name. An empty struct still needs `pass` to be a valid class body.
         let hoisted = std::cell::RefCell::new(Vec::new());
         let ty =
-            map_type_to_python_with(&OirType::Struct { fields: vec![] }, true, "Ctx", &hoisted);
+            map_type_to_python_with(&OirType::Struct { fields: vec![], additional: None }, true, "Ctx", &hoisted);
         assert_eq!(ty, "Ctx");
         assert_eq!(
             hoisted.into_inner(),
@@ -677,11 +677,13 @@ mod tests {
         let hoisted = std::cell::RefCell::new(Vec::new());
         let ty = map_type_to_python_with(
             &OirType::Struct {
+                additional: None,
                 fields: vec![
                     OirField::new("name", OirType::String),
                     OirField::new(
                         "geo",
                         OirType::Struct {
+                            additional: None,
                             fields: vec![OirField::new("lat", OirType::Number)],
                         },
                     ),
@@ -749,7 +751,7 @@ mod tests {
         let mut f = OirField::optional("nickname", OirType::String);
         f.required = false;
         let ty =
-            map_type_to_python_with(&OirType::Struct { fields: vec![f] }, true, "Ctx", &hoisted);
+            map_type_to_python_with(&OirType::Struct { fields: vec![f], additional: None }, true, "Ctx", &hoisted);
         assert_eq!(ty, "Ctx");
         assert_eq!(
             hoisted.into_inner(),
@@ -853,6 +855,7 @@ mod tests {
         let f = OirField::optional(
             "geo",
             OirType::Struct {
+                additional: None,
                 fields: vec![OirField::new("lat", OirType::Number)],
             },
         );
