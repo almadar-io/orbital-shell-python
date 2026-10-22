@@ -104,6 +104,31 @@ impl Shell for PythonShell {
         }
 
         copy_dir_recursive(&self.template_path, output_dir)?;
+        for (relative, content) in [
+            ("src/orbital_app/core/__init__.py", include_str!("../runtime/python/orbital_app/core/__init__.py")),
+            ("src/orbital_app/core/bindings.py", include_str!("../runtime/python/orbital_app/core/bindings.py")),
+            ("src/orbital_app/core/effect_executor.py", include_str!("../runtime/python/orbital_app/core/effect_executor.py")),
+            ("src/orbital_app/core/event_bus.py", include_str!("../runtime/python/orbital_app/core/event_bus.py")),
+            ("src/orbital_app/core/event_router.py", include_str!("../runtime/python/orbital_app/core/event_router.py")),
+            ("src/orbital_app/core/firebase.py", include_str!("../hosts/python/orbital_app/core/firebase.py")),
+            ("src/orbital_app/core/kernel_host.py", include_str!("../runtime/python/orbital_app/core/kernel_host.py")),
+            ("src/orbital_app/core/repository.py", include_str!("../hosts/python/orbital_app/core/repository.py")),
+            ("src/orbital_app/core/row_order.py", include_str!("../runtime/python/orbital_app/core/row_order.py")),
+            ("src/orbital_app/core/runtime_client.py", include_str!("../hosts/python/orbital_app/core/runtime_client.py")),
+            ("src/orbital_app/core/settings.py", include_str!("../hosts/python/orbital_app/core/settings.py")),
+            ("src/orbital_app/core/websocket.py", include_str!("../hosts/python/orbital_app/core/websocket.py")),
+            ("src/orbital_app/nn/__init__.py", include_str!("../runtime/python/orbital_app/nn/__init__.py")),
+            ("src/orbital_app/nn/builder.py", include_str!("../runtime/python/orbital_app/nn/builder.py")),
+            ("src/orbital_app/nn/constraints.py", include_str!("../runtime/python/orbital_app/nn/constraints.py")),
+            ("src/orbital_app/nn/forward.py", include_str!("../runtime/python/orbital_app/nn/forward.py")),
+            ("src/orbital_app/nn/training.py", include_str!("../runtime/python/orbital_app/nn/training.py")),
+        ] {
+            let target = output_dir.join(relative);
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(target, content)?;
+        }
         Ok(())
     }
 
@@ -169,5 +194,26 @@ mod tests {
         assert_eq!(shell.name(), "python");
         assert_eq!(shell.extensions(), &["py"]);
         assert_eq!(shell.generated_dir(), "src/orbital_app/generated");
+    }
+
+    #[test]
+    fn copied_scaffold_includes_kernel_and_neural_runtime() {
+        let output = std::env::temp_dir().join(format!(
+            "orbital_python_runtime_copy_{}",
+            std::process::id()
+        ));
+        PythonShell::new().copy_template(&output).unwrap();
+        let kernel = std::fs::read_to_string(output.join("src/orbital_app/core/kernel_host.py"))
+            .unwrap();
+        let neural = std::fs::read_to_string(output.join("src/orbital_app/nn/builder.py"))
+            .unwrap();
+        assert!(kernel.contains("class KernelHost"));
+        assert!(neural.contains("def build_network"));
+        let firebase = std::fs::read(output.join("src/orbital_app/core/firebase.py")).unwrap();
+        assert_eq!(
+            firebase.as_slice(),
+            include_bytes!("../hosts/python/orbital_app/core/firebase.py").as_slice()
+        );
+        std::fs::remove_dir_all(output).unwrap();
     }
 }

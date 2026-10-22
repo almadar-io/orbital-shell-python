@@ -1,6 +1,6 @@
 """The Python extension over the memory store produces the trace the Rust golden pins (the Node add-on pins the same file).
 
-Run: ORBITAL_KERNEL_DIR=<dir holding orbital_kernel.abi3.so> python3 -m unittest crates/orbital-shell-python/renderers/python/native/tests/test_stored.py
+Run: ORBITAL_KERNEL_DIR=<dir holding orbital_kernel.abi3.so> python3 -m unittest crates/orbital-shell-python/bridges/native/tests/test_stored.py
 """
 import json
 import os
@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, os.environ["ORBITAL_KERNEL_DIR"])
 import orbital_kernel  # noqa: E402
 
-FIXTURES = Path(__file__).resolve().parents[2] / "orbital-wasm" / "tests" / "fixtures" / "stored"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "stored"
 SAVE = json.dumps({"event": "SAVE", "targetTrait": "Draft"})
 MEMORY = json.dumps({"DATA_BACKEND": "mock", "NODE_ENV": "development"})
 
@@ -34,6 +34,10 @@ class StoredTrace(unittest.TestCase):
         waiting = json.loads(server.start("Main", SAVE))
         self.assertEqual(waiting["status"], "await")
         self.assertEqual([r["request"]["kind"] for r in waiting["requests"]], ["readRow"])
+
+    def test_the_retired_http_adapter_reports_its_unavailable_contract(self):
+        with self.assertRaisesRegex(RuntimeError, "NATIVE_SERVER_UNAVAILABLE"):
+            orbital_kernel.NativeServer.open(self.schema(), MEMORY, "{}")
 
     def test_control_production_refuses_the_memory_store_and_a_freed_server_is_an_error(self):
         with self.assertRaisesRegex(RuntimeError, "not permitted"):
