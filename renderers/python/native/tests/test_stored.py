@@ -1,6 +1,6 @@
 """The Python extension over the memory store produces the trace the Rust golden pins (the Node add-on pins the same file).
 
-Run: ORBITAL_KERNEL_DIR=<dir holding orbital_kernel.abi3.so> python3 -m unittest crates/orbital-python/tests/test_stored.py
+Run: ORBITAL_KERNEL_DIR=<dir holding orbital_kernel.abi3.so> python3 -m unittest crates/orbital-shell-python/renderers/python/native/tests/test_stored.py
 """
 import json
 import os

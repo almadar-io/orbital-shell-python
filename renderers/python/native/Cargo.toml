@@ -12,7 +12,6 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 orbital-wasm = { path = "../../../../orbital-wasm" }
-orbital-server = { path = "../../../../orbital-server" }
 pyo3 = { version = "0.25", features = ["abi3-py310", "extension-module"] }
 serde_json = "1.0"
 

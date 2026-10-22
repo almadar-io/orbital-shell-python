@@ -4,7 +4,7 @@
 
 use orbital_wasm::api;
 use orbital_wasm::stored::{ServerHandle, Slot};
-use pyo3::exceptions::{PyPermissionError, PyRuntimeError};
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -13,36 +13,21 @@ fn fail(message: String) -> PyErr {
     PyRuntimeError::new_err(message)
 }
 
-/// A program served by `orbital-server` in this process: every request goes through the server's own router, so a
-/// Python host serves the routes `orb serve` serves. The host keeps its listener and the live connections.
+/// The retired embedded HTTP adapter. Native kernel APIs below remain available.
 #[pyclass]
 struct NativeServer {
-    host: orbital_server::embedded::EmbeddedHost,
+    unavailable: std::convert::Infallible,
 }
 
 #[pymethods]
 impl NativeServer {
-    /// Boot `program_json` with the environment `env_json` and the message catalogs `catalogs_json`; `on_live(item_json)`
-    /// receives each live item.
     #[staticmethod]
     #[pyo3(signature = (program_json, env_json, catalogs_json, on_live=None))]
     fn open(program_json: &str, env_json: &str, catalogs_json: &str, on_live: Option<PyObject>) -> PyResult<Self> {
-        let env: HashMap<String, String> = serde_json::from_str(env_json).map_err(|e| fail(format!("parse env_json: {e}")))?;
-        let catalogs: orbital_server::Catalogs =
-            serde_json::from_str(catalogs_json).map_err(|e| fail(format!("parse catalogs_json: {e}")))?;
-        let on_live: Box<dyn Fn(String) + Send + Sync> = Box::new(move |item_json| {
-            let Some(callback) = on_live.as_ref() else { return };
-            Python::with_gil(|py| {
-                if let Err(error) = callback.call1(py, (item_json,)) {
-                    error.print(py);
-                }
-            });
-        });
-        let host = orbital_server::embedded::EmbeddedHost::open(program_json, &env, catalogs, on_live).map_err(|e| fail(format!("{e:#}")))?;
-        Ok(Self { host })
+        let _ = (program_json, env_json, catalogs_json, on_live);
+        Err(fail("NATIVE_SERVER_UNAVAILABLE: the embedded HTTP adapter retired with orbital-server; the std server adapter is pending. Native kernel Server APIs remain available.".to_string()))
     }
 
-    /// Run one request through the server's router: `(status, headers, body)`.
     fn handle(
         &self,
         py: Python<'_>,
@@ -51,27 +36,29 @@ impl NativeServer {
         headers: Vec<(String, String)>,
         body: Vec<u8>,
     ) -> PyResult<(u16, Vec<(String, String)>, Vec<u8>)> {
-        let response = py.allow_threads(|| self.host.handle(method, uri, &headers, body)).map_err(|e| fail(format!("{e:#}")))?;
-        Ok((response.status, response.headers, response.body))
+        let _ = (py, method, uri, headers, body);
+        match self.unavailable {}
     }
 
-    /// The viewer `authorization` names, as JSON (`null` when the program declares no sign-in); raises `PermissionError`
-    /// for a bearer that does not verify.
     #[pyo3(signature = (authorization=None))]
     fn viewer(&self, py: Python<'_>, authorization: Option<&str>) -> PyResult<String> {
-        py.allow_threads(|| self.host.viewer(authorization)).map_err(|e| PyPermissionError::new_err(e))
+        let _ = (py, authorization);
+        match self.unavailable {}
     }
 
     fn state(&self, trait_name: &str) -> String {
-        self.host.state(trait_name)
+        let _ = trait_name;
+        match self.unavailable {}
     }
 
     fn take_ticket(&self, ticket: &str) -> Option<String> {
-        self.host.take_ticket(ticket)
+        let _ = ticket;
+        match self.unavailable {}
     }
 
     fn live_recipients(&self, item_json: &str, connections_json: &str) -> PyResult<String> {
-        self.host.live_recipients(item_json, connections_json).map_err(fail)
+        let _ = (item_json, connections_json);
+        match self.unavailable {}
     }
 }
 
