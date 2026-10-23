@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 orbital-wasm = { git = "https://github.com/almadar-io/orbital-wasm", branch = "main" }
+orbital-shell-rust = { git = "https://github.com/almadar-io/orbital-shell-rust", branch = "main" }
 pyo3 = { version = "0.25", features = ["abi3-py310", "extension-module"] }
 serde_json = "1.0"
 

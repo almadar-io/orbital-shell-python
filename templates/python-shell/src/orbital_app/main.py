@@ -1,112 +1,54 @@
 """
-Orbital Python Shell - FastAPI Server
-
-Handles event processing for Orbital applications with PyTorch support.
-Generated code goes in orbital_app/generated/
+Orbital Python host: the native kernel (the `orbital_kernel` extension) serves the program the compile wrote
+under generated/, with the message catalogs of the locales it declares.
 """
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import uvicorn
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any, Dict, Optional
 
-from .core.settings import get_settings
-from .core.firebase import initialize_firebase
-from .core.websocket import connection_manager
-from .generated.routes import register_routes
+from dotenv import load_dotenv
 
-# Load settings
-settings = get_settings()
+KERNEL_DIR_ENV = "ORBITAL_KERNEL_DIR"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+GENERATED = Path(__file__).resolve().parent / "generated"
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler."""
-    print(f"Starting Orbital Python Server (env: {settings.environment})...")
+def catalogs_of(program: str, locales_dir: Path) -> Dict[str, Any]:
+    """The message catalogs of every locale the program declares, from the compile's `locales/`."""
+    catalogs: Dict[str, Any] = {}
+    for locale in json.loads(program).get("locales") or []:
+        file = locales_dir / f"{locale}.json"
+        if not file.is_file():
+            raise RuntimeError(f'the program declares locale "{locale}" but {file} is missing')
+        catalogs[locale] = json.loads(file.read_text(encoding="utf-8"))
+    return catalogs
 
-    # Initialize Firebase Admin SDK
+
+def load_extension(directory: Optional[Path] = None) -> Any:
+    """The native kernel extension from `directory`, else $ORBITAL_KERNEL_DIR, else the project's kernel/."""
+    found = directory or Path(os.environ.get(KERNEL_DIR_ENV) or PROJECT_ROOT / "kernel")
+    if str(found) not in sys.path:
+        sys.path.insert(0, str(found))
     try:
-        initialize_firebase()
-        if settings.is_emulator:
-            print(f"Firebase Admin SDK initialized (emulator: {settings.firestore_emulator_host})")
-        else:
-            print("Firebase Admin SDK initialized")
-    except Exception as e:
-        print(f"Warning: Firebase initialization failed: {e}")
-        print("Running without Firebase authentication")
-
-    yield
-    print("Shutting down...")
+        import orbital_kernel
+    except ImportError as error:
+        raise RuntimeError(
+            f"the native kernel extension is not in {found} (put orbital_kernel.abi3.so there or set {KERNEL_DIR_ENV}): {error}"
+        ) from error
+    return orbital_kernel
 
 
-app = FastAPI(
-    title="Orbital Python Shell",
-    description="FastAPI server for Orbital applications with PyTorch support",
-    version="0.1.0",
-    lifespan=lifespan,
-)
-
-# CORS middleware for React client
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "version": "0.1.0",
-        "environment": settings.environment,
-    }
-
-
-# WebSocket endpoint for real-time updates
-@app.websocket("/ws")
-async def websocket_global(websocket: WebSocket):
-    """Global WebSocket connection for all updates."""
-    await connection_manager.connect(websocket)
-    try:
-        while True:
-            # Keep connection alive, handle incoming messages
-            data = await websocket.receive_text()
-            # Echo back for ping/pong
-            if data == "ping":
-                await websocket.send_text("pong")
-    except WebSocketDisconnect:
-        await connection_manager.disconnect(websocket)
-
-
-@app.websocket("/ws/{entity_type}/{entity_id}")
-async def websocket_entity(websocket: WebSocket, entity_type: str, entity_id: str):
-    """Entity-specific WebSocket connection."""
-    await connection_manager.connect(websocket, entity_type, entity_id)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text("pong")
-    except WebSocketDisconnect:
-        await connection_manager.disconnect(websocket, entity_type, entity_id)
-
-
-# Register verification endpoints (ml-verify introspection API)
-from .verify import router as verify_router
-app.include_router(verify_router)
-
-# Register generated routes
-register_routes(app)
+def main() -> None:
+    load_dotenv(PROJECT_ROOT / ".env")
+    program = (GENERATED / "program.json").read_text(encoding="utf-8")
+    language = (GENERATED / "language.json").read_text(encoding="utf-8")
+    catalogs = catalogs_of(program, PROJECT_ROOT / "locales")
+    kernel = load_extension()
+    kernel.install_language(language)
+    kernel.serve(program, json.dumps(catalogs))
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "orbital_app.main:app",
-        host="0.0.0.0",
-        port=settings.port,
-        reload=settings.is_development,
-    )
+    main()

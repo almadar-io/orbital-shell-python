@@ -1,6 +1,7 @@
 //! The kernel as a native Python extension. `Server` is the `orbital-wasm` server API (`orbital_wasm::stored`,
 //! `api`), the same surface `orbital-node` exports, so a host loads any of them behind the same ports. Marshalling
-//! only: every decision is `orbital_core::embed`'s. The GIL is released while the kernel runs.
+//! only: every decision is `orbital_core::embed`'s. The GIL is released while the kernel runs. `serve` runs a whole served
+//! program on the native host.
 
 use orbital_wasm::api;
 use orbital_wasm::stored::{ServerHandle, Slot};
@@ -13,53 +14,21 @@ fn fail(message: String) -> PyErr {
     PyRuntimeError::new_err(message)
 }
 
-/// The retired embedded HTTP adapter. Native kernel APIs below remain available.
-#[pyclass]
-struct NativeServer {
-    unavailable: std::convert::Infallible,
-}
-
-#[pymethods]
-impl NativeServer {
-    #[staticmethod]
-    #[pyo3(signature = (program_json, env_json, catalogs_json, on_live=None))]
-    fn open(program_json: &str, env_json: &str, catalogs_json: &str, on_live: Option<PyObject>) -> PyResult<Self> {
-        let _ = (program_json, env_json, catalogs_json, on_live);
-        Err(fail("NATIVE_SERVER_UNAVAILABLE: the embedded HTTP adapter retired with orbital-server; the std server adapter is pending. Native kernel Server APIs remain available.".to_string()))
-    }
-
-    fn handle(
-        &self,
-        py: Python<'_>,
-        method: &str,
-        uri: &str,
-        headers: Vec<(String, String)>,
-        body: Vec<u8>,
-    ) -> PyResult<(u16, Vec<(String, String)>, Vec<u8>)> {
-        let _ = (py, method, uri, headers, body);
-        match self.unavailable {}
-    }
-
-    #[pyo3(signature = (authorization=None))]
-    fn viewer(&self, py: Python<'_>, authorization: Option<&str>) -> PyResult<String> {
-        let _ = (py, authorization);
-        match self.unavailable {}
-    }
-
-    fn state(&self, trait_name: &str) -> String {
-        let _ = trait_name;
-        match self.unavailable {}
-    }
-
-    fn take_ticket(&self, ticket: &str) -> Option<String> {
-        let _ = ticket;
-        match self.unavailable {}
-    }
-
-    fn live_recipients(&self, item_json: &str, connections_json: &str) -> PyResult<String> {
-        let _ = (item_json, connections_json);
-        match self.unavailable {}
-    }
+/// Run a served program (the app composed with `std-http-server`) on the native host: boot it with its store and
+/// ticks, mount `INIT` on every trait, and hold it until SIGINT or SIGTERM. The GIL is released while it runs.
+#[pyfunction]
+fn serve(py: Python<'_>, program_json: &str, catalogs_json: &str) -> PyResult<()> {
+    let catalogs: orbital_shell_rust::host::boot::Catalogs =
+        serde_json::from_str(catalogs_json).map_err(|e| fail(format!("parse catalogs_json: {e}")))?;
+    py.allow_threads(|| {
+        let env = std::env::vars().collect();
+        let runtime = orbital_shell_rust::host::boot::boot_embedded(program_json, &env, catalogs).map_err(|e| e.to_string())?;
+        orbital_shell_rust::host::run::mount_init(&runtime).map_err(|e| format!("INIT: {e}"))?;
+        let stop = orbital_shell_rust::host::run::stop_on_signal().map_err(|e| e.to_string())?;
+        orbital_shell_rust::host::run::hold(&runtime, &stop);
+        Ok(())
+    })
+    .map_err(fail)
 }
 
 /// The server role: `start` a request, answer the I/O it asks for, `resume` the flight until it is done.
@@ -205,7 +174,7 @@ fn os_glob_matches(glob: &str, path: &str) -> bool {
 #[pymodule]
 fn orbital_kernel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Server>()?;
-    m.add_class::<NativeServer>()?;
+    m.add_function(wrap_pyfunction!(serve, m)?)?;
     m.add_function(wrap_pyfunction!(install_language, m)?)?;
     m.add_function(wrap_pyfunction!(os_glob_matches, m)?)?;
     Ok(())

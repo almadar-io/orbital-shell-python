@@ -21,9 +21,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY pyproject.toml ./
 COPY src/ ./src/
 
-# Install dependencies (including torch CPU-only for smaller image)
+# Install dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir . --extra-index-url https://download.pytorch.org/whl/cpu
+    pip install --no-cache-dir .
 
 # Production stage
 FROM python:3.11-slim
@@ -34,7 +34,7 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy application code and the native kernel extension (kernel/, empty for a generated-host app)
+# Copy application code and the native kernel extension (kernel/)
 COPY src/ ./src/
 COPY kernel/ ./kernel/
 
@@ -45,15 +45,11 @@ ENV ENVIRONMENT=production
 ENV NODE_ENV=production
 ENV ORBITAL_KERNEL_DIR=/app/kernel
 
-# Port (default 8000, Cloud Run overrides via PORT env var)
-ENV PORT=8000
+# Port (default 3030, Cloud Run overrides via PORT env var)
+ENV PORT=3030
 
 # Expose port
-EXPOSE 8000
+EXPOSE 3030
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
-
-# Run the application (uses $PORT for Cloud Run compatibility)
-CMD ["sh", "-c", "uvicorn orbital_app.main:app --host 0.0.0.0 --port ${PORT}"]
+# Run the application (the served program listens on $PORT)
+CMD ["python", "-m", "orbital_app"]

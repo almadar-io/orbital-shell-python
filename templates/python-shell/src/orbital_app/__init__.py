@@ -1,8 +1,8 @@
 """
 Orbital Python Shell
 
-FastAPI server backend for Orbital applications with PyTorch support.
-Generated code goes in orbital_app/generated/
+Python host of a program served by the native kernel (`orbital_kernel`).
+The compile writes the program under orbital_app/generated/
 """
 
 __version__ = "0.1.0"

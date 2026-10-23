@@ -1,6 +1,6 @@
 # orbital-shell-python
 
-The Python shell: generates a FastAPI (+ PyTorch) backend from a compiled Orbital program.
+The Python shell: the Python host of a compiled Orbital program: it ships the served program and runs it on the native kernel.
 
 Part of [Almadar](https://almadar.io)'s Orbital compiler, which turns a `.lolo`/`.orb` program into a full-stack app. The `orb` CLI (npm `@almadar/orb`) bundles this crate; you only need this repo to read, build or change it.
 

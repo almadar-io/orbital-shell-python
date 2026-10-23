@@ -104,5 +104,5 @@ echo "=========================================="
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format='value(status.url)' 2>/dev/null || echo "")
 if [ -n "$SERVICE_URL" ]; then
     echo "Service URL: $SERVICE_URL"
-    echo "Health check: $SERVICE_URL/health"
+    echo "Service URL: $SERVICE_URL"
 fi

@@ -4,10 +4,11 @@ version = "18.0.0"
 edition = "2021"
 license = "BUSL-1.1"
 repository = "https://github.com/almadar-io/orbital-shell-python"
-description = "Python/PyTorch shell for the Orbital compiler - ML simulation backend"
+description = "Python host for the Orbital compiler - runs a served program on the native kernel"
 
 [dependencies]
 orbital-core-base = { git = "https://github.com/almadar-io/orbital-core", branch = "main" }
+orbital-core-eval = { git = "https://github.com/almadar-io/orbital-core", branch = "main" }
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

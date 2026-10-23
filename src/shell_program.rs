@@ -1,67 +1,53 @@
 //! `orb-shell-python`: the Python shell as a program (`orbital_core::shell_protocol`).
 
-use crate::kernel_host::{self, Host, HOST_OPTION};
-use crate::{KernelProject, PythonBackend};
+use crate::kernel_host::KernelProject;
+use crate::PythonBackend;
+use orbital_core_base::generate::ShellMode;
 use orbital_core_base::project::write_project;
 use orbital_core_base::shell_protocol::{
     description, written_files, GenerateRequest, GenerateResponse, ShellDescription, ShellFailure,
-    ShellOption, ShellProgram, CODE_BAD_REQUEST, CODE_GENERATE_FAILED,
+    ShellProgram, CODE_BAD_REQUEST, CODE_GENERATE_FAILED,
 };
 use std::path::Path;
 
 pub struct PythonProgram;
 
-/// The native kernel extension, shipped beside the shell program and copied into a kernel-hosted project.
+/// The native kernel extension, shipped beside the shell program and copied into the project.
 const KERNEL_EXTENSION: &str = if cfg!(windows) {
     "orbital_kernel.pyd"
 } else {
     "orbital_kernel.abi3.so"
 };
 
-fn host_option() -> ShellOption {
-    ShellOption {
-        name: HOST_OPTION.to_string(),
-        description: "Who runs the program: the native kernel, or the generated Python handlers. auto is the kernel unless the program uses a Python-only (ML) operator, the one program class that stays on the generated handlers".to_string(),
-        values: Some(vec!["auto".to_string(), "kernel".to_string(), "generated".to_string()]),
-        default: Some("auto".to_string()),
-    }
-}
-
-fn requested_host(request: &GenerateRequest) -> Result<&str, ShellFailure> {
-    match request.options.get(HOST_OPTION) {
-        None => Ok("auto"),
-        Some(serde_json::Value::String(s)) => Ok(s),
-        Some(other) => Err(ShellFailure::new(
-            CODE_BAD_REQUEST,
-            format!("option {HOST_OPTION} must be a string, got {other}"),
-        )),
-    }
-}
-
 fn kernel_project(request: &GenerateRequest) -> Result<KernelProject, ShellFailure> {
-    let resolved = request.resolved.as_ref().ok_or_else(|| {
+    let served = request.served.as_ref().ok_or_else(|| {
         ShellFailure::new(
             CODE_BAD_REQUEST,
-            "the kernel host needs the resolved program, and the request carries none",
+            "the python shell serves a program on the native kernel, and the request carries no served program",
         )
     })?;
-    let program = serde_json::to_string(resolved).map_err(|e| {
-        ShellFailure::new(CODE_GENERATE_FAILED, format!("serialize the program: {e}"))
+    let value = serde_json::to_value(served).map_err(|e| {
+        ShellFailure::new(
+            CODE_GENERATE_FAILED,
+            format!("serialize the served program: {e}"),
+        )
+    })?;
+    let program = serde_json::to_string(&orbital_core_eval::util::canonical_json(&value)).map_err(|e| {
+        ShellFailure::new(
+            CODE_GENERATE_FAILED,
+            format!("serialize the served program: {e}"),
+        )
     })?;
     let language = orbital_core_base::language_data::language_bundle_json()
         .map_err(|e| ShellFailure::new(CODE_GENERATE_FAILED, format!("{}: {e}", e.code())))?;
     Ok(KernelProject { program, language })
 }
 
-
 impl ShellProgram for PythonProgram {
     fn describe(&self) -> ShellDescription {
-        description(
-            "python",
-            env!("CARGO_PKG_VERSION"),
-            true,
-            vec![host_option()],
-        )
+        let mut described = description("python", env!("CARGO_PKG_VERSION"), true, vec![]);
+        described.needs_served = true;
+        described
     }
 
     fn generate(
@@ -69,10 +55,9 @@ impl ShellProgram for PythonProgram {
         request: &GenerateRequest,
         output: &Path,
     ) -> Result<GenerateResponse, ShellFailure> {
-        let host = kernel_host::choose(requested_host(request)?, &request.module)
-            .map_err(|e| ShellFailure::new(CODE_BAD_REQUEST, e))?;
+        let serves = request.write.mode != ShellMode::Client;
         let mut backend = PythonBackend::new();
-        if host == Host::Kernel {
+        if serves {
             backend.kernel = Some(kernel_project(request)?);
         }
         let generated = write_project(
@@ -83,10 +68,17 @@ impl ShellProgram for PythonProgram {
             &request.write,
         )?;
         let mut warnings = generated.warnings.clone();
-        if host == Host::Kernel {
-            warnings.extend(orbital_core_base::shell_protocol::ship_kernel_beside_program(KERNEL_EXTENSION, output)?);
-        } else {
-            warnings.extend(kernel_host::generated_host_note(&request.module));
+        if let (true, Some(source)) = (serves, &request.source_path) {
+            orbital_core_base::project::copy_locales(source, output)
+                .map_err(|e| ShellFailure::new(CODE_GENERATE_FAILED, format!("copy locales: {e}")))?;
+        }
+        if serves {
+            warnings.extend(
+                orbital_core_base::shell_protocol::ship_kernel_beside_program(
+                    KERNEL_EXTENSION,
+                    output,
+                )?,
+            );
         }
         Ok(GenerateResponse {
             files: written_files(&generated),
@@ -95,7 +87,7 @@ impl ShellProgram for PythonProgram {
                 format!("cd {}", output.display()),
                 "python -m venv .venv && source .venv/bin/activate".to_string(),
                 "pip install -e .".to_string(),
-                "python -m orbital_app.main".to_string(),
+                "python -m orbital_app".to_string(),
             ],
         })
     }
@@ -105,73 +97,103 @@ impl ShellProgram for PythonProgram {
         request: &GenerateRequest,
     ) -> Result<orbital_core_base::generate::GeneratedOutput, ShellFailure> {
         use orbital_core_base::generate::Backend as _;
-        Ok(crate::PythonBackend::new().generate(&request.module))
+        Ok(PythonBackend::new().generate(&request.module))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core_base::ir::expr::OirExpr;
-    use orbital_core_base::ir::{OirModule, OirTrait, OirTransition};
+    use orbital_core_base::ir::OirModule;
+    use orbital_core_base::schema::types::OrbitalSchema;
     use orbital_core_base::shell_protocol::IR_VERSION;
 
-    fn request(function: &str, host: &str) -> GenerateRequest {
-        let mut trait_def = OirTrait::new("Mixer");
-        trait_def.transitions.push(
-            OirTransition::new("idle", "idle", "GO")
-                .with_effects(vec![OirExpr::call(function, vec![])]),
-        );
-        let mut module = OirModule::new("app", "1.0.0");
-        module.traits.push(trait_def);
+    fn served(name: &str) -> OrbitalSchema {
+        serde_json::from_value(serde_json::json!({
+            "name": name,
+            "orbitals": [{
+                "name": name,
+                "entity": {
+                    "name": "E",
+                    "persistence": "runtime",
+                    "fields": [{ "name": "id", "type": "string" }]
+                },
+                "traits": [],
+                "pages": []
+            }]
+        }))
+        .unwrap()
+    }
+
+    fn request(mode: ShellMode, served: Option<OrbitalSchema>) -> GenerateRequest {
         GenerateRequest {
             ir_version: IR_VERSION,
-            module,
+            module: OirModule::new("app", "1.0.0"),
             resolved: None,
+            served,
             source_path: None,
-            write: Default::default(),
-            options: [(
-                HOST_OPTION.to_string(),
-                serde_json::Value::String(host.to_string()),
-            )]
-            .into_iter()
-            .collect(),
+            write: orbital_core_base::project::WriteOptions {
+                mode,
+                ..Default::default()
+            },
+            options: Default::default(),
         }
     }
 
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("orb-py-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
     #[test]
-    fn the_shell_asks_for_the_resolved_program_and_offers_the_host_option() {
+    fn the_shell_asks_for_the_resolved_and_the_served_program() {
         let description = PythonProgram.describe();
         assert!(description.needs_resolved);
-        let option = description
-            .options
-            .iter()
-            .find(|o| o.name == HOST_OPTION)
-            .unwrap();
-        assert_eq!(option.default.as_deref(), Some("auto"));
+        assert!(description.needs_served);
+        assert!(description.options.is_empty());
     }
 
     #[test]
-    fn a_kernel_host_for_a_program_with_a_python_only_operator_is_refused_by_name() {
-        let out = std::env::temp_dir().join(format!("orb-py-host-{}", std::process::id()));
+    fn a_full_generate_without_a_served_program_is_refused() {
+        let out = scratch("full-none");
         let failure = PythonProgram
-            .generate(&request("nn/linear", "kernel"), &out)
-            .unwrap_err();
-        assert_eq!(failure.code, CODE_BAD_REQUEST);
-        assert!(failure.message.contains("nn/linear"), "{}", failure.message);
-    }
-
-    #[test]
-    fn control_a_kernel_host_without_the_resolved_program_is_refused() {
-        let out = std::env::temp_dir().join(format!("orb-py-host-none-{}", std::process::id()));
-        let failure = PythonProgram
-            .generate(&request("+", "kernel"), &out)
+            .generate(&request(ShellMode::Full, None), &out)
             .unwrap_err();
         assert_eq!(failure.code, CODE_BAD_REQUEST);
         assert!(
-            failure.message.contains("resolved program"),
+            failure.message.contains("served program"),
             "{}",
             failure.message
         );
+        let server = PythonProgram
+            .generate(&request(ShellMode::Server, None), &scratch("server-none"))
+            .unwrap_err();
+        assert_eq!(server.code, CODE_BAD_REQUEST);
+    }
+
+    #[test]
+    fn control_client_mode_is_not_refused_without_a_served_program() {
+        let out = scratch("client-none");
+        let result = PythonProgram.generate(&request(ShellMode::Client, None), &out);
+        assert!(result.is_ok(), "{:?}", result.err().map(|f| f.message));
+        assert!(!out.join("src/orbital_app/generated/program.json").exists());
+        let _ = std::fs::remove_dir_all(out);
+    }
+
+    #[test]
+    fn a_served_program_is_written_as_the_generated_program() {
+        let out = scratch("served");
+        PythonProgram
+            .generate(&request(ShellMode::Full, Some(served("ServedApp"))), &out)
+            .unwrap();
+        let text =
+            std::fs::read_to_string(out.join("src/orbital_app/generated/program.json")).unwrap();
+        let program: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(program["name"], "ServedApp");
+        assert!(out
+            .join("src/orbital_app/generated/language.json")
+            .is_file());
+        let _ = std::fs::remove_dir_all(out);
     }
 }

@@ -35,9 +35,9 @@ class StoredTrace(unittest.TestCase):
         self.assertEqual(waiting["status"], "await")
         self.assertEqual([r["request"]["kind"] for r in waiting["requests"]], ["readRow"])
 
-    def test_the_retired_http_adapter_reports_its_unavailable_contract(self):
-        with self.assertRaisesRegex(RuntimeError, "NATIVE_SERVER_UNAVAILABLE"):
-            orbital_kernel.NativeServer.open(self.schema(), MEMORY, "{}")
+    def test_serve_refuses_catalogs_that_are_not_json(self):
+        with self.assertRaisesRegex(RuntimeError, "parse catalogs_json"):
+            orbital_kernel.serve(self.schema(), "not json")
 
     def test_control_production_refuses_the_memory_store_and_a_freed_server_is_an_error(self):
         with self.assertRaisesRegex(RuntimeError, "not permitted"):

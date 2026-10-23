@@ -12,29 +12,23 @@
 version: '3.8'
 
 services:
-  # Python FastAPI Server
+  # Python host of the served program
   server:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8080"
+      - "3030:3030"
     environment:
       - ENVIRONMENT=development
-      - PORT=8080
+      - PORT=3030
       - FIRESTORE_EMULATOR_HOST=firebase:8080
       - FIREBASE_PROJECT_ID=demo-project
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
     depends_on:
       - firebase
     volumes:
       # Mount source for hot reload (development only)
       - ./src:/app/src:ro
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
 
   # Firebase Emulator
   firebase:

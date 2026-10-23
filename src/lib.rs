@@ -1,27 +1,14 @@
 //! Python Shell for Orbital Compiler
 //!
-//! This crate provides the Python/PyTorch shell implementation for the Orbital compiler.
-//! It generates Python code for ML simulation with PyTorch backend, ideal for trait machine
-//! simulation and neural network training.
-//!
-//! # Features
-//!
-//! - **Pydantic Entities**: Type-safe entity models with validation
-//! - **State Machines**: Async trait handlers with state management
-//! - **PyTorch Integration**: S-expression neural networks compiled to PyTorch
-//! - **FastAPI Backend**: REST API for trait event handlers
-//! - **Headless Simulation**: Batch training and evaluation support
+//! The Python host of a served program: the project holds the served program (the app composed with
+//! `std-http-server`), the language it runs against and a small entry point that hands both to the native
+//! kernel extension (`orbital_kernel`), which serves the program.
 
 #![allow(unexpected_cfgs)]
 
-mod backend;
 pub mod kernel_host;
-pub mod codegen;
-mod generators;
 mod shell;
 pub mod shell_program;
 
-pub use backend::{KernelProject, PythonBackend};
-pub use codegen::*;
-pub use generators::*;
+pub use kernel_host::{KernelProject, PythonBackend};
 pub use shell::PythonShell;
