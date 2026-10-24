@@ -6,7 +6,7 @@ Python host of an Orbital program. The program (the app composed with `std-http-
 
 | Path | What |
 |------|------|
-| `src/orbital_app/generated/program.json` | The served program, written by `orb compile` |
+| `src/orbital_app/generated/program.orb` | The served program, written by `orb compile` |
 | `src/orbital_app/generated/language.json` | The language bundle the kernel runs against |
 | `src/orbital_app/main.py` | Entry point: loads both, reads the program's locale catalogs from `locales/`, calls `orbital_kernel.serve` |
 | `kernel/` | The `orbital_kernel` extension (or set `ORBITAL_KERNEL_DIR`) |

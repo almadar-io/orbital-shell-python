@@ -42,7 +42,7 @@ def load_extension(directory: Optional[Path] = None) -> Any:
 
 def main() -> None:
     load_dotenv(PROJECT_ROOT / ".env")
-    program = (GENERATED / "program.json").read_text(encoding="utf-8")
+    program = (GENERATED / "program.orb").read_text(encoding="utf-8")
     language = (GENERATED / "language.json").read_text(encoding="utf-8")
     catalogs = catalogs_of(program, PROJECT_ROOT / "locales")
     kernel = load_extension()

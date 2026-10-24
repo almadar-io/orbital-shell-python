@@ -177,7 +177,7 @@ mod tests {
         let out = scratch("client-none");
         let result = PythonProgram.generate(&request(ShellMode::Client, None), &out);
         assert!(result.is_ok(), "{:?}", result.err().map(|f| f.message));
-        assert!(!out.join("src/orbital_app/generated/program.json").exists());
+        assert!(!out.join("src/orbital_app/generated/program.orb").exists());
         let _ = std::fs::remove_dir_all(out);
     }
 
@@ -188,7 +188,7 @@ mod tests {
             .generate(&request(ShellMode::Full, Some(served("ServedApp"))), &out)
             .unwrap();
         let text =
-            std::fs::read_to_string(out.join("src/orbital_app/generated/program.json")).unwrap();
+            std::fs::read_to_string(out.join("src/orbital_app/generated/program.orb")).unwrap();
         let program: serde_json::Value = serde_json::from_str(&text).unwrap();
         assert_eq!(program["name"], "ServedApp");
         assert!(out

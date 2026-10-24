@@ -11,7 +11,7 @@ pub struct KernelProject {
 }
 
 
-/// Writes `generated/program.json` and `generated/language.json` for a project that serves a program.
+/// Writes `generated/program.orb` and `generated/language.json` for a project that serves a program.
 #[derive(Default)]
 pub struct PythonBackend {
     pub kernel: Option<KernelProject>,
@@ -27,7 +27,7 @@ impl Backend for PythonBackend {
     fn generate(&self, _module: &OirModule) -> GeneratedOutput {
         let files = match &self.kernel {
             Some(project) => vec![
-                GeneratedFile::new("program.json", project.program.clone()),
+                GeneratedFile::new("program.orb", project.program.clone()),
                 GeneratedFile::new("language.json", project.language.clone()),
             ],
             None => Vec::new(),
