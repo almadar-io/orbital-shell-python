@@ -23,7 +23,7 @@ fn serve(py: Python<'_>, program_json: &str, catalogs_json: &str) -> PyResult<()
     py.allow_threads(|| {
         let env = std::env::vars().collect();
         let runtime = orbital_shell_rust::host::boot::boot_embedded(program_json, &env, catalogs).map_err(|e| e.to_string())?;
-        orbital_shell_rust::host::run::mount_init(&runtime).map_err(|e| format!("INIT: {e}"))?;
+        orbital_shell_rust::host::run::mount_init(&runtime, orbital_shell_rust::host::run::ProtocolSide::Server).map_err(|e| format!("INIT: {e}"))?;
         let stop = orbital_shell_rust::host::run::stop_on_signal().map_err(|e| e.to_string())?;
         orbital_shell_rust::host::run::hold(&runtime, &stop);
         Ok(())
