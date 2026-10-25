@@ -29,8 +29,7 @@ The server listens on port 3030 (`PORT` replaces it).
 |----------|-------------|
 | `PORT` | Server port (default 3030) |
 | `ORBITAL_KERNEL_DIR` | Directory holding `orbital_kernel.abi3.so` (default `./kernel`) |
-| `DATA_BACKEND` | The row store: `mock`, `firebase`, `postgres`, `couchdb` |
-| `DATABASE_URL`, `COUCHDB_URL`, `FIREBASE_*` | Store connection, read by the kernel |
+| `FIREBASE_*` | Sign-in project; the row store is declared by the app (`store:` with a std driver) |
 
 ## Deployment
 

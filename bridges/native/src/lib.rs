@@ -7,7 +7,6 @@ use orbital_wasm::api;
 use orbital_wasm::stored::{ServerHandle, Slot};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 fn fail(message: String) -> PyErr {
@@ -49,17 +48,6 @@ impl Server {
     fn new(resolved_schema_json: &str) -> PyResult<Self> {
         Ok(Self {
             held: Slot::new(ServerHandle::plain(resolved_schema_json).map_err(fail)?),
-        })
-    }
-
-    /// A server that answers its own row asks from the store `env_json` selects (`DATA_BACKEND`, `DATABASE_URL`,
-    /// `COUCHDB_URL`, the Firebase variables); the host answers the rest.
-    #[staticmethod]
-    fn with_store(resolved_schema_json: &str, env_json: &str) -> PyResult<Self> {
-        let env: HashMap<String, String> =
-            serde_json::from_str(env_json).map_err(|e| fail(format!("parse env_json: {e}")))?;
-        Ok(Self {
-            held: Slot::new(ServerHandle::from_env(resolved_schema_json, &env).map_err(fail)?),
         })
     }
 
