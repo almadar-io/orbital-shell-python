@@ -9,8 +9,9 @@ use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-fn fail(message: String) -> PyErr {
-    PyRuntimeError::new_err(message)
+/// Every kernel error (a typed entry error or a message) is mapped once, here at the Python boundary.
+fn fail(error: impl std::fmt::Display) -> PyErr {
+    PyRuntimeError::new_err(error.to_string())
 }
 
 /// Run a served program (the app composed with `std-http-server`) on the native host: boot it with its store and
@@ -25,7 +26,7 @@ fn serve(py: Python<'_>, program_json: &str, catalogs_json: &str) -> PyResult<()
         orbital_shell_rust::host::run::mount_init(&runtime, orbital_shell_rust::host::run::ProtocolSide::Server).map_err(|e| format!("INIT: {e}"))?;
         let stop = orbital_shell_rust::host::run::stop_on_signal().map_err(|e| e.to_string())?;
         orbital_shell_rust::host::run::hold(&runtime, &stop);
-        Ok(())
+        Ok::<(), String>(())
     })
     .map_err(fail)
 }
