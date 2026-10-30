@@ -25,6 +25,19 @@ class PlainServer(unittest.TestCase):
         self.assertEqual(waiting["status"], "await")
         self.assertEqual([r["request"]["kind"] for r in waiting["requests"]], ["readRow"])
 
+    def test_a_stateful_server_refuses_carried_circuit_state_outside_a_delegated_leg(self):
+        carried = [{"trait": "Draft", "from": "idle"}]
+        server = orbital_kernel.Server(self.schema())
+        server.set_stateful(True)
+        refused = json.loads(server.start("Main", json.dumps({"event": "SAVE", "traits": carried})))
+        self.assertEqual(refused["status"], "done")
+        self.assertEqual(refused["response"]["rejections"][0]["code"], "client-circuit-state-refused")
+        leg = json.loads(server.start("Main", json.dumps({"event": "SAVE", "targetTrait": "Draft", "traits": carried})))
+        self.assertEqual(leg["status"], "await", "control: a targeted leg is the delegated leg")
+        stateless = orbital_kernel.Server(self.schema())
+        taken = json.loads(stateless.start("Main", json.dumps({"event": "SAVE", "traits": carried})))
+        self.assertNotEqual(taken.get("response", {}).get("rejections", [{}])[0].get("code"), "client-circuit-state-refused", "control: a stateless host takes the client's copy")
+
     def test_serve_refuses_catalogs_that_are_not_json(self):
         with self.assertRaisesRegex(RuntimeError, "parse catalogs_json"):
             orbital_kernel.serve(self.schema(), "not json")

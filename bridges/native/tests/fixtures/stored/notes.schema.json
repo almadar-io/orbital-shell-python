@@ -1,5 +1,6 @@
 {
   "name": "notes",
+  "typeContractVersion": 1,
   "orbitals": [
     {
       "name": "Main",

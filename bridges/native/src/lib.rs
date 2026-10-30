@@ -100,6 +100,11 @@ impl Server {
         Ok(self.handle()?.api().get_state(trait_name, entity_id))
     }
 
+    fn set_stateful(&self, stateful: bool) -> PyResult<()> {
+        self.handle()?.api().set_stateful(stateful);
+        Ok(())
+    }
+
     fn set_managed_program(&self, program_json: &str) -> PyResult<()> {
         self.handle()?.api().set_managed_program(program_json).map_err(fail)
     }
@@ -138,11 +143,23 @@ impl Server {
             .map_err(fail)
     }
 
-    fn set_tick_mount(&self, traits_json: &str) -> PyResult<()> {
+    fn mount_client(&self, client: &str, orbital: &str, traits_json: &str) -> PyResult<()> {
         self.handle()?
             .api()
-            .set_tick_mount(traits_json)
+            .mount_client(client, orbital, traits_json)
             .map_err(fail)
+    }
+
+    fn unmount_client(&self, client: &str, orbital: &str, traits_json: &str) -> PyResult<()> {
+        self.handle()?
+            .api()
+            .unmount_client(client, orbital, traits_json)
+            .map_err(fail)
+    }
+
+    fn release_client(&self, client: &str) -> PyResult<()> {
+        self.handle()?.api().release_client(client);
+        Ok(())
     }
 
     fn last_error(&self) -> PyResult<String> {
