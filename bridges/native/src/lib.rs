@@ -75,9 +75,10 @@ impl Server {
             .map_err(fail)
     }
 
-    fn resolve_rows(&self, py: Python<'_>, ref_json: &str, viewer_json: &str) -> PyResult<String> {
+    #[pyo3(signature = (ref_json, client_id=None))]
+    fn resolve_rows(&self, py: Python<'_>, ref_json: &str, client_id: Option<&str>) -> PyResult<String> {
         let handle = self.handle()?;
-        py.allow_threads(|| handle.resolve_rows(ref_json, viewer_json))
+        py.allow_threads(|| handle.resolve_rows(ref_json, client_id))
             .map_err(fail)
     }
 
@@ -107,13 +108,6 @@ impl Server {
 
     fn set_managed_program(&self, program_json: &str) -> PyResult<()> {
         self.handle()?.api().set_managed_program(program_json).map_err(fail)
-    }
-
-    fn set_default_user(&self, user_json: &str) -> PyResult<()> {
-        self.handle()?
-            .api()
-            .set_default_user(user_json)
-            .map_err(fail)
     }
 
     fn mount(&self, traits_json: &str) -> PyResult<()> {
