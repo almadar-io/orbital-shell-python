@@ -56,10 +56,11 @@ impl Server {
         self.held.take();
     }
 
-    fn os_allows(&self, requirement_json: &str) -> PyResult<bool> {
+    #[pyo3(signature = (requirement_json, orbital=None))]
+    fn os_allows(&self, requirement_json: &str, orbital: Option<&str>) -> PyResult<bool> {
         self.handle()?
             .api()
-            .os_allows(requirement_json)
+            .os_allows(requirement_json, orbital)
             .map_err(fail)
     }
 
