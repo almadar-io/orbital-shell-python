@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+almadar_core_py/__init__.py
+almadar_core_py/models.py
+almadar_core_py.egg-info/PKG-INFO
+almadar_core_py.egg-info/SOURCES.txt
+almadar_core_py.egg-info/dependency_links.txt
+almadar_core_py.egg-info/requires.txt
+almadar_core_py.egg-info/top_level.txt

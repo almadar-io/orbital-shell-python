@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: almadar-core-py
+Version: 0.1.0
+Summary: Generated pydantic v2 mirror of @almadar/core's asset-domain zod schemas. Never hand-edit — see README.md.
+Requires-Python: >=3.10
+Requires-Dist: pydantic>=2.5

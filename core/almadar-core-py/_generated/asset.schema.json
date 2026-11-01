@@ -1,0 +1,602 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$defs": {
+    "EntityRole": {
+      "type": "string",
+      "enum": [
+        "player",
+        "enemy",
+        "npc",
+        "item",
+        "tile",
+        "projectile",
+        "effect",
+        "ui",
+        "decoration",
+        "vehicle"
+      ]
+    },
+    "VisualStyle": {
+      "type": "string",
+      "enum": [
+        "pixel",
+        "vector",
+        "hd",
+        "1-bit",
+        "isometric"
+      ]
+    },
+    "AssetDimension": {
+      "type": "string",
+      "enum": [
+        "2d",
+        "3d"
+      ]
+    },
+    "AssetAspect": {
+      "type": "string",
+      "enum": [
+        "1:1",
+        "16:9",
+        "5:7",
+        "8:1",
+        "4:1",
+        "5:3",
+        "1:2"
+      ]
+    },
+    "AnimationName": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "walk",
+        "skate",
+        "jump",
+        "fall",
+        "attack",
+        "hit",
+        "death"
+      ]
+    },
+    "SpriteDirection": {
+      "type": "string",
+      "enum": [
+        "se",
+        "sw",
+        "ne",
+        "nw"
+      ]
+    },
+    "SheetProjection": {
+      "type": "string",
+      "enum": [
+        "iso",
+        "front",
+        "back",
+        "top",
+        "perspective"
+      ]
+    },
+    "AnimationDef": {
+      "type": "object",
+      "properties": {
+        "row": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "frames": {
+          "type": "integer",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "frameRate": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "row",
+        "frames",
+        "frameRate",
+        "loop"
+      ],
+      "additionalProperties": false
+    },
+    "SpriteSheetAtlas": {
+      "type": "object",
+      "properties": {
+        "unit": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "frameWidth": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "frameHeight": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "columns": {
+          "type": "integer",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "rows": {
+          "type": "integer",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "directions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpriteDirection"
+          }
+        },
+        "sheets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "enum": [
+              "se",
+              "sw",
+              "ne",
+              "nw"
+            ]
+          }
+        },
+        "animations": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/AnimationDef"
+          }
+        },
+        "projections": {
+          "type": "object",
+          "properties": {
+            "iso": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "enum": [
+                  "se",
+                  "sw",
+                  "ne",
+                  "nw"
+                ]
+              }
+            },
+            "front": {
+              "type": "string"
+            },
+            "back": {
+              "type": "string"
+            },
+            "top": {
+              "type": "string"
+            },
+            "perspective": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "frameWidth",
+        "frameHeight",
+        "columns",
+        "rows",
+        "directions",
+        "sheets",
+        "animations"
+      ],
+      "additionalProperties": false
+    },
+    "SubTexture": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "frameX": {
+          "type": "number"
+        },
+        "frameY": {
+          "type": "number"
+        },
+        "frameWidth": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "frameHeight": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "TextureAtlas": {
+      "type": "object",
+      "properties": {
+        "imagePath": {
+          "type": "string"
+        },
+        "subTextures": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SubTexture"
+          }
+        }
+      },
+      "required": [
+        "imagePath",
+        "subTextures"
+      ],
+      "additionalProperties": false
+    },
+    "Tilesheet": {
+      "type": "object",
+      "properties": {
+        "imagePath": {
+          "type": "string"
+        },
+        "tileWidth": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "tileHeight": {
+          "type": "number",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "columns": {
+          "type": "integer",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "rows": {
+          "type": "integer",
+          "exclusiveMinimum": true,
+          "minimum": 0
+        },
+        "margin": {
+          "type": "number",
+          "minimum": 0
+        },
+        "spacing": {
+          "type": "number",
+          "minimum": 0
+        },
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "imagePath",
+        "tileWidth",
+        "tileHeight",
+        "columns",
+        "rows"
+      ],
+      "additionalProperties": false
+    },
+    "SemanticAssetRef": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "animations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "style": {
+          "$ref": "#/$defs/VisualStyle"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "dimension": {
+          "$ref": "#/$defs/AssetDimension"
+        },
+        "aspect": {
+          "$ref": "#/$defs/AssetAspect"
+        }
+      },
+      "required": [
+        "role",
+        "category"
+      ],
+      "additionalProperties": false
+    },
+    "Asset": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "atlas": {
+          "type": "string"
+        },
+        "sprite": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "thumbnailUrl": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "choreography": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/SemanticAssetRef"
+        }
+      ]
+    },
+    "AssetCatalogEntry": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "image",
+            "spritesheet",
+            "audio",
+            "scene",
+            "portrait",
+            "model",
+            "other"
+          ]
+        },
+        "thumbnailUrl": {
+          "type": "string"
+        },
+        "dimension": {
+          "$ref": "#/$defs/AssetDimension"
+        },
+        "aspect": {
+          "$ref": "#/$defs/AssetAspect"
+        }
+      },
+      "required": [
+        "url",
+        "name",
+        "category",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "AssetCatalog": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AssetCatalogEntry"
+      }
+    },
+    "ManifestEntryKind": {
+      "type": "string",
+      "enum": [
+        "model",
+        "image",
+        "spritesheet",
+        "audio",
+        "json"
+      ]
+    },
+    "ManifestCanvasAffinity": {
+      "type": "string",
+      "enum": [
+        "isometric",
+        "hex",
+        "flat",
+        "side",
+        "3d",
+        "none"
+      ]
+    },
+    "ManifestSourceCatalog": {
+      "type": "string",
+      "enum": [
+        "kenny",
+        "kekec-assets",
+        "iram-assets",
+        "trait-wars-assets",
+        "kflow-assets"
+      ]
+    },
+    "ManifestAssetLicense": {
+      "type": "string",
+      "enum": [
+        "CC0",
+        "proprietary"
+      ]
+    },
+    "ManifestFrameSpec": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "iso-tile"
+            },
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "w",
+            "h"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "sprite-sheet"
+            },
+            "frame": {
+              "type": "number"
+            },
+            "cols": {
+              "type": "number"
+            },
+            "rows": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "frame",
+            "cols",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ManifestEntry": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ManifestEntryKind"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "canvasAffinity": {
+          "$ref": "#/$defs/ManifestCanvasAffinity"
+        },
+        "genreAffinity": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "swapClass": {
+          "type": "string"
+        },
+        "sourceCatalog": {
+          "$ref": "#/$defs/ManifestSourceCatalog"
+        },
+        "frameSpec": {
+          "$ref": "#/$defs/ManifestFrameSpec"
+        },
+        "license": {
+          "$ref": "#/$defs/ManifestAssetLicense"
+        }
+      },
+      "required": [
+        "url",
+        "name",
+        "category",
+        "kind",
+        "width",
+        "height",
+        "canvasAffinity",
+        "genreAffinity",
+        "swapClass",
+        "sourceCatalog",
+        "frameSpec"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
