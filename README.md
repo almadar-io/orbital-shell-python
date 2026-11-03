@@ -130,8 +130,7 @@ Open gaps are tracked in [Almadar_Gaps.md](Almadar_Gaps.md). Work on `main`; nev
 
 ## Docs
 
-- [Almadar_Orbital_Shell_Python.md](https://github.com/itechdom/kflow.ai/blob/main/docs/Almadar_Orbital_Shell_Python.md)
-- [Almadar_Execution_Semantics.md](https://github.com/itechdom/kflow.ai/blob/main/docs/Almadar_Execution_Semantics.md)
+- [Orb documentation](https://orb.almadar.io/docs): the language, the `orb` CLI and how the pieces fit
 
 ## License
 
