@@ -480,6 +480,19 @@ mod tests {
     }
 
     #[test]
+    fn a_nullable_number_field_renders_one_none() {
+        let mut m = OirModule::new("app", "1.0.0");
+        let mut rec = OirEntity::new("Rec");
+        rec.fields.push(OirField::optional("v", OirType::optional(OirType::Number)));
+        rec.fields.push(OirField::new("n", OirType::Number));
+        m.entities.push(rec);
+        let content = entities_file(&m).content;
+        assert!(content.contains("    v: float | None = None\n"), "{content}");
+        assert!(!content.contains("None | None"), "{content}");
+        assert!(content.contains("    n: float\n"), "{content}");
+    }
+
+    #[test]
     fn control_a_required_field_without_default_has_no_none() {
         let file = entities_file(&module(false));
         assert!(!file.content.contains("status: Literal[\"open\", \"closed\"] | None"));
