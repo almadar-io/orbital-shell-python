@@ -11,7 +11,7 @@ pub struct KernelProject {
 }
 
 
-/// Writes `generated/program.orb` and `generated/language.json` for a project that serves a program.
+/// Writes the generated models (`entities.py`, `events.py`) and, for a project that serves a program, `program.orb` and `language.json`.
 #[derive(Default)]
 pub struct PythonBackend {
     pub kernel: Option<KernelProject>,
@@ -24,14 +24,16 @@ impl PythonBackend {
 }
 
 impl Backend for PythonBackend {
-    fn generate(&self, _module: &OirModule) -> GeneratedOutput {
-        let files = match &self.kernel {
-            Some(project) => vec![
-                GeneratedFile::new("program.orb", project.program.clone()),
-                GeneratedFile::new("language.json", project.language.clone()),
-            ],
-            None => Vec::new(),
-        };
+    fn generate(&self, module: &OirModule) -> GeneratedOutput {
+        let mut files = vec![
+            crate::models::package_file(),
+            crate::models::entities_file(module),
+            crate::models::events_file(module),
+        ];
+        if let Some(project) = &self.kernel {
+            files.push(GeneratedFile::new("program.orb", project.program.clone()));
+            files.push(GeneratedFile::new("language.json", project.language.clone()));
+        }
         GeneratedOutput {
             files,
             warnings: vec![],
@@ -56,7 +58,6 @@ impl Backend for PythonBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     #[test]
     fn client_mode_writes_nothing_even_with_a_program() {
@@ -76,7 +77,7 @@ mod tests {
                 .generate_with_mode(&module, ShellMode::Server)
                 .files
                 .len(),
-            2
+            5
         );
     }
 }

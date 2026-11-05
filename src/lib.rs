@@ -7,6 +7,7 @@
 #![allow(unexpected_cfgs)]
 
 pub mod kernel_host;
+mod models;
 mod shell;
 pub mod shell_program;
 

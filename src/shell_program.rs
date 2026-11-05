@@ -4,6 +4,7 @@ use crate::kernel_host::KernelProject;
 use crate::PythonBackend;
 use orbital_core_base::generate::ShellMode;
 use orbital_core_base::project::write_project;
+use orbital_core_base::shell::Shell;
 use orbital_core_base::shell_protocol::{
     description, written_files, GenerateRequest, GenerateResponse, ShellDescription, ShellFailure,
     ShellProgram, CODE_BAD_REQUEST, CODE_GENERATE_FAILED,
@@ -81,7 +82,10 @@ impl ShellProgram for PythonProgram {
             );
         }
         Ok(GenerateResponse {
-            files: written_files(&generated),
+            files: written_files(&generated)
+                .into_iter()
+                .map(|file| format!("{}/{file}", crate::PythonShell::new().generated_dir()))
+                .collect(),
             warnings,
             next_steps: vec![
                 format!("cd {}", output.display()),
@@ -183,6 +187,23 @@ mod tests {
     }
 
     #[test]
+    fn the_response_lists_each_file_relative_to_the_output_root() {
+        let out = scratch("paths");
+        let response = PythonProgram
+            .generate(&request(ShellMode::Full, Some(served("ServedApp"))), &out)
+            .unwrap();
+        for file in &response.files {
+            assert!(out.join(file).is_file(), "{file} is not under the output");
+        }
+        assert!(response
+            .files
+            .iter()
+            .any(|f| f == "src/orbital_app/generated/program.orb"));
+        assert!(!response.files.iter().any(|f| f == "program.orb"));
+        let _ = std::fs::remove_dir_all(out);
+    }
+
+    #[test]
     fn a_served_program_is_written_as_the_generated_program() {
         let out = scratch("served");
         PythonProgram
@@ -195,6 +216,8 @@ mod tests {
         assert!(out
             .join("src/orbital_app/generated/language.json")
             .is_file());
+        assert!(out.join("src/orbital_app/generated/entities.py").is_file());
+        assert!(out.join("src/orbital_app/generated/events.py").is_file());
         let _ = std::fs::remove_dir_all(out);
     }
 }
