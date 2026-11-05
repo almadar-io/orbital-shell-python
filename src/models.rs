@@ -142,17 +142,16 @@ impl TargetTypeRenderer for PyTypes<'_> {
             .iter()
             .map(|v| {
                 let name = format!("{}{}", self.context, split_to_pascal_case(&v.name));
-                let lines = match &v.field_type {
-                    OirType::Struct { fields, .. } => field_lines(fields, &name, self),
-                    other => {
-                        let child = self.child(format!("{name}Value"));
-                        vec![format!("    value: {}", render_type(&child, other, None))]
+                match &v.field_type {
+                    OirType::Struct { fields, .. } => {
+                        let lines = field_lines(fields, &name, self);
+                        self.hoisted
+                            .borrow_mut()
+                            .push(dataclass(&name, None, &lines));
+                        name
                     }
-                };
-                self.hoisted
-                    .borrow_mut()
-                    .push(dataclass(&name, None, &lines));
-                name
+                    other => render_type(&self.child(name), other, None),
+                }
             })
             .collect();
         names.join(" | ")
@@ -574,6 +573,24 @@ mod tests {
         let expected = "@dataclass(kw_only=True)\nclass GameConfig:\n    label: str | None = None\n    pointsPerKill: float = 10.0\n    running: bool = True\n";
         let content = events_file(&m).content;
         assert!(content.contains(expected), "{content}");
+    }
+
+    #[test]
+    fn a_union_renders_a_bare_primitive_arm_and_hoists_a_struct_arm() {
+        let mut m = OirModule::new("app", "1.0.0");
+        let mut holder = OirEntity::new("Holder");
+        let env = OirType::Struct { additional: None, fields: vec![OirField::new("anchor", OirType::String)].into() };
+        let mut host = OirField::new(
+            "host",
+            OirType::Union { variants: vec![OirField::new("string", OirType::String), OirField::new("Env", env)].into() },
+        );
+        host.default = Some(OirValue::String("api.example.test".into()));
+        holder.fields.push(host);
+        m.entities.push(holder);
+        let content = entities_file(&m).content;
+        assert!(content.contains("@dataclass(kw_only=True)\nclass HolderHostEnv:\n    anchor: str\n"), "{content}");
+        assert!(content.contains("    host: str | HolderHostEnv = \"api.example.test\"\n"), "{content}");
+        assert!(!content.contains("HolderHostString"), "{content}");
     }
 
     #[test]
