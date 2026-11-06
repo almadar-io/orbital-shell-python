@@ -11,7 +11,7 @@ pub struct KernelProject {
 }
 
 
-/// Writes the generated models (`entities.py`, `events.py`) and, for a project that serves a program, `program.orb` and `language.json`.
+/// Writes the generated models (`entities.py`, `events.py`) in every mode and, for a project that serves a program, `program.orb` and `language.json`.
 #[derive(Default)]
 pub struct PythonBackend {
     pub kernel: Option<KernelProject>,
@@ -43,7 +43,11 @@ impl Backend for PythonBackend {
     fn generate_with_mode(&self, module: &OirModule, mode: ShellMode) -> GeneratedOutput {
         match mode {
             ShellMode::Client => GeneratedOutput {
-                files: vec![],
+                files: vec![
+                    crate::models::package_file(),
+                    crate::models::entities_file(module),
+                    crate::models::events_file(module),
+                ],
                 warnings: vec![],
             },
             ShellMode::Full | ShellMode::Server => self.generate(module),
@@ -60,7 +64,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn client_mode_writes_nothing_even_with_a_program() {
+    fn client_mode_writes_only_the_models_even_with_a_program() {
         let backend = PythonBackend {
             kernel: Some(KernelProject {
                 program: "{}".to_string(),
@@ -68,10 +72,16 @@ mod tests {
             }),
         };
         let module = OirModule::new("app", "1.0.0");
-        assert!(backend
+        let client: Vec<String> = backend
             .generate_with_mode(&module, ShellMode::Client)
             .files
-            .is_empty());
+            .into_iter()
+            .map(|f| f.path)
+            .collect();
+        assert!(
+            client.iter().all(|p| p != "program.orb" && p != "language.json") && client.len() == 3,
+            "client mode writes the three model files and no served program: {client:?}"
+        );
         assert_eq!(
             backend
                 .generate_with_mode(&module, ShellMode::Server)
