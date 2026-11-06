@@ -69,10 +69,6 @@ impl ShellProgram for PythonProgram {
             &request.write,
         )?;
         let mut warnings = generated.warnings.clone();
-        if let (true, Some(source)) = (serves, &request.source_path) {
-            orbital_core_base::project::copy_locales(source, output)
-                .map_err(|e| ShellFailure::new(CODE_GENERATE_FAILED, format!("copy locales: {e}")))?;
-        }
         if serves {
             warnings.extend(
                 orbital_core_base::shell_protocol::ship_kernel_beside_program(

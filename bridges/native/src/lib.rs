@@ -17,12 +17,10 @@ fn fail(error: impl std::fmt::Display) -> PyErr {
 /// Run a served program (the app composed with `std-http-server`) on the native host: boot it with its store and
 /// ticks, mount `INIT` on every trait, and hold it until SIGINT or SIGTERM. The GIL is released while it runs.
 #[pyfunction]
-fn serve(py: Python<'_>, program_json: &str, catalogs_json: &str) -> PyResult<()> {
-    let catalogs: orbital_shell_rust::host::boot::Catalogs =
-        serde_json::from_str(catalogs_json).map_err(|e| fail(format!("parse catalogs_json: {e}")))?;
+fn serve(py: Python<'_>, program_json: &str) -> PyResult<()> {
     py.allow_threads(|| {
         let env = std::env::vars().collect();
-        let runtime = orbital_shell_rust::host::boot::boot_embedded(program_json, &env, catalogs).map_err(|e| e.to_string())?;
+        let runtime = orbital_shell_rust::host::boot::boot_embedded(program_json, &env).map_err(|e| e.to_string())?;
         orbital_shell_rust::host::run::mount_init(&runtime, orbital_shell_rust::host::run::ProtocolSide::Server).map_err(|e| format!("INIT: {e}"))?;
         let stop = orbital_shell_rust::host::run::stop_on_signal().map_err(|e| e.to_string())?;
         orbital_shell_rust::host::run::hold(&runtime, &stop);
@@ -117,13 +115,6 @@ impl Server {
 
     fn remount(&self, traits_json: &str) -> PyResult<()> {
         self.handle()?.api().remount(traits_json).map_err(fail)
-    }
-
-    fn set_messages(&self, locales_json: &str, catalogs_json: &str) -> PyResult<()> {
-        self.handle()?
-            .api()
-            .set_messages(locales_json, catalogs_json)
-            .map_err(fail)
     }
 
     fn set_capabilities(
