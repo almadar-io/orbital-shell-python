@@ -385,14 +385,10 @@ fn payloads(module: &OirModule) -> BTreeMap<String, Vec<OirField>> {
     let mut out = BTreeMap::new();
     for t in &module.traits {
         for event in &t.events {
-            let Some(schema) = event.payload_schema.as_ref().filter(|s| !s.is_empty()) else {
+            let fields = event.payload_fields();
+            if fields.is_empty() {
                 continue;
-            };
-            let mut fields: Vec<OirField> = schema
-                .iter()
-                .map(|(k, v)| OirField::new(k.clone(), v.clone()))
-                .collect();
-            fields.sort_by(|a, b| a.name.cmp(&b.name));
+            }
             out.insert(format!("{}{}Payload", symbol(&t.name), symbol(&event.key)), fields);
         }
     }
@@ -475,10 +471,12 @@ mod tests {
             schema.insert("text".into(), OirType::String);
             schema.insert("size".into(), OirType::Number);
             listened.payload_schema = Some(schema);
+            listened.payload_required_fields = ["text", "size"].into_iter().map(String::from).collect();
             let mut emitted = OirEvent::new("CHUNKED");
             let mut schema = orbital_core_base::ir::OirTypeMap::new();
             schema.insert("count".into(), OirType::Integer);
             emitted.payload_schema = Some(schema);
+            emitted.payload_required_fields = ["count"].into_iter().map(String::from).collect();
             t.events = vec![listened, emitted, OirEvent::new("RESET")];
             m.traits.push(t);
         }
@@ -602,5 +600,14 @@ mod tests {
     fn control_a_void_event_and_a_traitless_module_declare_no_payload() {
         assert!(!events_file(&module(true)).content.contains("ChunkRESETPayload"));
         assert!(!events_file(&module(false)).content.contains("class "));
+    }
+
+    #[test]
+    fn a_payload_key_not_marked_required_renders_optional() {
+        let mut m = module(true);
+        m.traits[0].events[0].payload_required_fields.remove("size");
+        let content = events_file(&m).content;
+        assert!(content.contains("    size: float | None = None\n"), "{content}");
+        assert!(content.contains("    text: str\n"), "control: a `!` key stays required: {content}");
     }
 }
