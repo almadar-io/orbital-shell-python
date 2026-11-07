@@ -247,6 +247,9 @@ impl TargetLiteralRenderer for PyLiteral {
             format!("{s}.0")
         }
     }
+    fn node_text(&self, s: &str) -> Option<String> {
+        Some(self.string(s))
+    }
     fn string(&self, s: &str) -> String {
         format!("\"{}\"", escape_python_string(s))
     }
@@ -609,5 +612,13 @@ mod tests {
         let content = events_file(&m).content;
         assert!(content.contains("    size: float | None = None\n"), "{content}");
         assert!(content.contains("    text: str\n"), "control: a `!` key stays required: {content}");
+    }
+
+    #[test]
+    fn a_text_default_of_a_node_field_is_a_python_string() {
+        use orbital_core_base::ir::{render_default, OirType};
+        let text = OirValue::String("Ticket \"one\"".to_string());
+        assert_eq!(render_default(&PyLiteral, &text, &OirType::Node, None), Ok(Some("\"Ticket \\\"one\\\"\"".to_string())));
+        assert!(render_default(&PyLiteral, &OirValue::Number(1.0), &OirType::Node, None).is_err(), "control: a number is not a text node");
     }
 }
