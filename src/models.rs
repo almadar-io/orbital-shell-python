@@ -259,6 +259,10 @@ impl TargetLiteralRenderer for PyLiteral {
     fn array(&self, items: Vec<String>) -> String {
         format!("[{}]", items.join(", "))
     }
+    fn map(&self, entries: Vec<(String, String)>) -> Option<String> {
+        let pairs: Vec<String> = entries.into_iter().map(|(k, v)| format!("{}: {v}", self.string(&k))).collect();
+        Some(format!("{{{}}}", pairs.join(", ")))
+    }
 }
 
 fn dataclass(name: &str, doc: Option<&str>, lines: &[String]) -> String {
@@ -303,7 +307,9 @@ fn field_line(f: &OirField, class: &str, types: &PyTypes<'_>) -> String {
         Some((Some(value), marker)) => {
             let value = if value == "[]" {
                 "field(default_factory=list)".to_string()
-            } else if value.starts_with('[') {
+            } else if value == "{}" {
+                "field(default_factory=dict)".to_string()
+            } else if value.starts_with('[') || value.starts_with('{') {
                 format!("field(default_factory=lambda: {value})")
             } else {
                 value
@@ -620,5 +626,21 @@ mod tests {
         let text = OirValue::String("Ticket \"one\"".to_string());
         assert_eq!(render_default(&PyLiteral, &text, &OirType::Node, None), Ok(Some("\"Ticket \\\"one\\\"\"".to_string())));
         assert!(render_default(&PyLiteral, &OirValue::Number(1.0), &OirType::Node, None).is_err(), "control: a number is not a text node");
+    }
+
+    #[test]
+    fn a_map_default_of_a_field_is_a_dict_factory() {
+        let mut fields = orbital_core_base::ir::types::OirObject::default();
+        fields.insert("open".to_string(), OirValue::Array(vec![]));
+        let ty = OirType::Map { key: Box::new(OirType::String), value: Box::new(OirType::Array { inner: Box::new(OirType::String) }) };
+        let mut empty = OirField::new("relations", ty.clone());
+        empty.default = Some(OirValue::Object(Default::default()));
+        let mut full = OirField::new("relations", ty);
+        full.default = Some(OirValue::Object(fields));
+        let hoisted = RefCell::new(Vec::new());
+        let local = BTreeSet::new();
+        let types = PyTypes { context: "Cfg".to_string(), hoisted: &hoisted, local: &local };
+        assert!(field_line(&empty, "Cfg", &types).ends_with("= field(default_factory=dict)"), "{}", field_line(&empty, "Cfg", &types));
+        assert!(field_line(&full, "Cfg", &types).ends_with("= field(default_factory=lambda: {\"open\": []})"), "{}", field_line(&full, "Cfg", &types));
     }
 }
