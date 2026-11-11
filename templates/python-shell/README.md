@@ -29,7 +29,16 @@ The server listens on port 3030 (`PORT` replaces it).
 |----------|-------------|
 | `PORT` | Server port (default 3030) |
 | `ORBITAL_KERNEL_DIR` | Directory holding `orbital_kernel.abi3.so` (default `./kernel`) |
-| `FIREBASE_*` | Sign-in project; the row store is declared by the app (`store:` with a std driver) |
+| `AUTH_PROVIDER` | `firebase` or `oidc`; unset, no token is accepted and every request is anonymous |
+| `FIREBASE_PROJECT_ID` | With `firebase`: the project whose ID tokens are accepted |
+| `OIDC_ISSUER_URL`, `OIDC_AUDIENCE` | With `oidc`: the issuer and audience tokens must carry |
+| `FIREBASE_AUTH_EMULATOR_HOST` | Local dev only: unsigned Auth-emulator tokens are accepted |
+
+The row store is declared by the app (`store:` with a std driver); no variable selects it.
+
+## Sign-in
+
+This project is a server: it has no screen and signs nobody in. A client (the web client compiled with `orb compile --mode client --backend-url <this server>`, a native app, or a script holding a token) obtains the ID token and sends it on every request as `Authorization: Bearer <token>`. The served program verifies the token and binds `@user` to the app's identity row; the host passes the header through as data and verifies nothing. A request with no header is anonymous, and the program signs that session out. Signing out is the client dropping its token.
 
 ## Deployment
 
@@ -38,4 +47,4 @@ The server listens on port 3030 (`PORT` replaces it).
 ./scripts/setup-secrets.sh orbital-app us-central1
 ```
 
-The Dockerfile copies `src/` and `kernel/` and runs `python -m orbital_app`.
+The Dockerfile copies `src/` and `kernel/` and runs `python -m orbital_app`. The deploy scripts set no sign-in variable: set `AUTH_PROVIDER` and its project or issuer on the service (`gcloud run services update <service> --update-env-vars AUTH_PROVIDER=firebase`), or no token is accepted.

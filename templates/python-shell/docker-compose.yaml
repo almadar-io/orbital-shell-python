@@ -22,6 +22,8 @@ services:
     environment:
       - ENVIRONMENT=development
       - PORT=3030
+      - AUTH_PROVIDER=firebase
+      - FIREBASE_AUTH_EMULATOR_HOST=firebase:9099
       - FIRESTORE_EMULATOR_HOST=firebase:8080
       - FIREBASE_PROJECT_ID=demo-project
     depends_on:
