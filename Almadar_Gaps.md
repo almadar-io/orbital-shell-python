@@ -9,6 +9,6 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 Next code: `G-ORBITAL-SHELL-PYTHON-011`
 
-- **G-ORBITAL-SHELL-PYTHON-010** [mechanical] — The Python shell carries dead surfaces (R2 shell survey 2026-10-29): core/almadar-core-py (models.py 279 + _generated/asset.schema.json 602) has no importer and no live generator; bridges/native lib.rs exports a 17-method Server the template never uses (only install_language and serve; Server only in tests/test_stored.py); os_glob_matches has no caller. Retire. Update 2026-11-07 (re-verified against source): models.py gone; retire schema json, Server pymethods, os_glob_matches. Root cause: T2.
+- **G-ORBITAL-SHELL-PYTHON-010** [mechanical] — The Python shell carries dead surfaces (R2 shell survey 2026-10-29): core/almadar-core-py (models.py 279 + _generated/asset.schema.json 602) has no importer and no live generator; bridges/native lib.rs exports a 17-method Server the template never uses (only install_language and serve; Server only in tests/test_stored.py); os_glob_matches has no caller. Retire. Update 2026-11-07 (re-verified against source): models.py gone; retire schema json, Server pymethods, os_glob_matches. Severity: low. Root cause: T2.
 
 
