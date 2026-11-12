@@ -57,13 +57,15 @@ steps:
       - '--max-instances'
       - '10'
       - '--set-env-vars'
-      - 'ENVIRONMENT=production'
+      - 'ENVIRONMENT=production,${_AUTH_ENV}'
     id: 'deploy'
     waitFor: ['push-sha']
 
 # Substitutions with defaults
 substitutions:
   _SERVICE_NAME: orbital-app
+  # The sign-in settings, required: AUTH_PROVIDER=firebase,FIREBASE_PROJECT_ID=<id> or AUTH_PROVIDER=oidc,OIDC_ISSUER_URL=<url>
+  _AUTH_ENV: ''
   _REGION: us-central1
 
 # Build options

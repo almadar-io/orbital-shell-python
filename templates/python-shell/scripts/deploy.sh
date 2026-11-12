@@ -21,6 +21,28 @@ if [ -z "$PROJECT_ID" ]; then
     exit 1
 fi
 
+# The served program verifies sign-in tokens only for the provider named here (std-bearer-verify); unset, every request is anonymous.
+case "${AUTH_PROVIDER:-}" in
+    firebase)
+        if [ -z "${FIREBASE_PROJECT_ID:-}" ]; then
+            echo "Error: AUTH_PROVIDER=firebase needs FIREBASE_PROJECT_ID"
+            exit 1
+        fi
+        AUTH_ENV="AUTH_PROVIDER=firebase,FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID"
+        ;;
+    oidc)
+        if [ -z "${OIDC_ISSUER_URL:-}" ]; then
+            echo "Error: AUTH_PROVIDER=oidc needs OIDC_ISSUER_URL"
+            exit 1
+        fi
+        AUTH_ENV="AUTH_PROVIDER=oidc,OIDC_ISSUER_URL=$OIDC_ISSUER_URL"
+        ;;
+    *)
+        echo "Error: set AUTH_PROVIDER to firebase or oidc (with FIREBASE_PROJECT_ID or OIDC_ISSUER_URL); see .env.example"
+        exit 1
+        ;;
+esac
+
 echo "=========================================="
 echo "Deploying $SERVICE_NAME to Cloud Run"
 echo "=========================================="
@@ -33,7 +55,7 @@ deploy_with_cloud_build() {
     echo "Deploying with Cloud Build..."
     gcloud builds submit \
         --config cloudbuild.yaml \
-        --substitutions="_SERVICE_NAME=$SERVICE_NAME,_REGION=$REGION"
+        --substitutions="^;^_SERVICE_NAME=$SERVICE_NAME;_REGION=$REGION;_AUTH_ENV=$AUTH_ENV"
 }
 
 # Option 2: Deploy directly (faster for development)
@@ -61,7 +83,7 @@ deploy_direct() {
         --cpu 1 \
         --min-instances 0 \
         --max-instances 10 \
-        --set-env-vars "ENVIRONMENT=production"
+        --set-env-vars "ENVIRONMENT=production,$AUTH_ENV"
 }
 
 # Option 3: Deploy from source (simplest, but slowest)
@@ -73,7 +95,8 @@ deploy_from_source() {
         --platform managed \
         --allow-unauthenticated \
         --memory 1Gi \
-        --cpu 1
+        --cpu 1 \
+        --set-env-vars "ENVIRONMENT=production,$AUTH_ENV"
 }
 
 # Parse deployment method
