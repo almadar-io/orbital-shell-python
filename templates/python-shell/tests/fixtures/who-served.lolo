@@ -1,0 +1,84 @@
+app who-served [
+  version: "1.0.0",
+  store: Rows,
+  env: ["CORS_ORIGIN", "PORT", "VAPID_PUBLIC_KEY", "ORB_TICK_INVOKER", "ALMADAR_API_KEY_SALT", "NODE_ENV", "AUTH_PROVIDER", "OIDC_ISSUER_URL", "OIDC_AUDIENCE", "FIREBASE_PROJECT_ID", "FIREBASE_SERVICE_ACCOUNT_PATH", "FIREBASE_AUTH_EMULATOR_HOST", "FIRESTORE_EMULATOR_HOST", "ALMADAR_INTEGRATIONS_MODE"],
+  egress: ["https://www.googleapis.com"],
+  fs: { cwd: "data/**": [read, write, create, remove], cwd: "dist/client/**": [read] },
+  net: { "127.0.0.1:3000": [listen], "127.0.0.1", env PORT: [listen], "www.googleapis.com:443": [tcp] },
+  description: "A served program with one route that answers who the viewer is."
+]
+
+uses Server from "std/behaviors/std-http-server"
+uses RowStoreA from "std/behaviors/std-row-store-file"
+
+orbital Roster {
+  entity Member [persistent: members, identity] {
+    @read none "The proof reads the roster as the program."
+    @create none "A person's row is written when they first sign in."
+    id : string!
+    name : string
+    email : email
+    role : "member" = member
+  }
+
+  trait RosterView -> Member {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: typography, content: "roster", variant: h3 })
+      OPEN_WHO -> idle
+        (navigate "/who")
+    }
+  }
+
+  page "/" as RosterPage -> RosterView
+}
+
+orbital Who {
+  entity WhoProbe [runtime] {
+    id : string!
+    viewer : string = ""
+  }
+
+  trait WhoAmI -> WhoProbe {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: typography, content: "who", variant: h3 })
+
+      ASK -> idle
+        (emit ANSWER { viewer: @user.id })
+    }
+
+    emits {
+      ANSWER -> external {
+        viewer : string!
+      }
+        @description "The id of the viewer the request was made as."
+    }
+  }
+
+  page "/who" as WhoPage -> WhoAmI
+}
+
+orbital Api = Server.orbitals.HttpServerOrbital {
+  config {
+    host: "127.0.0.1"
+    identityEntity: Member
+    createIdentity: false
+    ownOrbital: Api
+    ownTrait: ApiServerBinding
+    portFromEnv: true
+    clientDir: "dist/client"
+  }
+}
+
+orbital Rows = RowStoreA.orbitals.RowStoreFileOrbital {
+  traits {
+    RowStoreDriver {
+      config { dir: "data/rows/" }
+    }
+  }
+}

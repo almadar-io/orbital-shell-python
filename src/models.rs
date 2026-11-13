@@ -3,7 +3,7 @@
 
 use orbital_core_base::generate::GeneratedFile;
 use orbital_core_base::ir::{
-    render_default, render_type, OirEntity, OirField, OirModule, OirType, TargetLiteralRenderer,
+    render_default_in, render_type, OirEntity, OirField, OirModule, OirType, TargetLiteralRenderer,
     TargetTypeRenderer, TypeMappingClass,
 };
 use orbital_core_base::str_utils::{
@@ -54,6 +54,7 @@ struct PyTypes<'a> {
     context: String,
     hoisted: &'a RefCell<Vec<String>>,
     local: &'a BTreeSet<String>,
+    named: &'a std::collections::BTreeMap<String, OirType>,
 }
 
 impl PyTypes<'_> {
@@ -62,6 +63,7 @@ impl PyTypes<'_> {
             context,
             hoisted: self.hoisted,
             local: self.local,
+            named: self.named,
         }
     }
 }
@@ -299,7 +301,7 @@ fn field_line(f: &OirField, class: &str, types: &PyTypes<'_>) -> String {
         rendered
     };
     let name = py_identifier(&f.name);
-    let default = f.default.as_ref().map(|v| match render_default(&PyLiteral, v, ty, None) {
+    let default = f.default.as_ref().map(|v| match render_default_in(&PyLiteral, v, ty, None, types.named) {
         Ok(rendered) => (rendered, None),
         Err(mismatch) => (Some("None".to_string()), Some(mismatch.marker())),
     });
@@ -329,6 +331,7 @@ fn entity_source(entity: &OirEntity, types: &PyTypes<'_>) -> String {
         context: class.clone(),
         hoisted: &hoisted,
         local: types.local,
+        named: types.named,
     };
     let mut lines = vec!["    id: str".to_string()];
     let rest: Vec<OirField> = entity
@@ -362,6 +365,7 @@ pub fn entities_file(module: &OirModule) -> GeneratedFile {
         context: String::new(),
         hoisted: &file_hoisted,
         local: &local,
+        named: &module.named_types,
     };
     for (name, ty) in &module.named_types {
         render_type(&types.child(orbital_core_base::type_compat::type_identifier(name)), ty, None);
@@ -429,6 +433,7 @@ pub fn events_file(module: &OirModule) -> GeneratedFile {
             context: name.clone(),
             hoisted: &hoisted,
             local: &local,
+            named: &module.named_types,
         };
         let lines = field_lines(&fields, &name, &types);
         for decl in hoisted.take() {
@@ -549,6 +554,41 @@ mod tests {
         assert!(!content.contains("StdFoo"), "{content}");
     }
 
+    fn aliased_default_module() -> OirModule {
+        let mut m = OirModule::new("app", "1.0.0");
+        m.named_types.insert(
+            "Host".to_string(),
+            OirType::Union {
+                variants: vec![
+                    OirField::new("string", OirType::String),
+                    OirField::new("Env", OirType::Struct { additional: None, fields: vec![OirField::new("anchor", OirType::String)].into() }),
+                ]
+                .into(),
+            },
+        );
+        let mut holder = OirEntity::new("Holder");
+        let mut host = OirField::new("host", OirType::TypeRef { name: "Host".to_string() });
+        host.required = false;
+        host.default = Some(orbital_core_base::ir::OirValue::String("api.example.test".to_string()));
+        holder.fields.push(host);
+        m.entities.push(holder);
+        m
+    }
+
+    #[test]
+    fn a_default_on_an_aliased_union_field_renders_without_a_mismatch_marker() {
+        let content = entities_file(&aliased_default_module()).content;
+        assert!(!content.contains("LITERAL_TYPE_MISMATCH"), "{content}");
+        assert!(content.contains("= \"api.example.test\""), "{content}");
+    }
+
+    #[test]
+    fn control_an_aliased_field_with_a_default_the_alias_cannot_hold_still_carries_the_marker() {
+        let mut m = aliased_default_module();
+        m.entities[0].fields[0].default = Some(orbital_core_base::ir::OirValue::Number(1.0));
+        assert!(entities_file(&m).content.contains("LITERAL_TYPE_MISMATCH"));
+    }
+
     #[test]
     fn events_render_one_payload_per_declared_payload_with_sorted_fields() {
         let file = events_file(&module(true));
@@ -639,7 +679,7 @@ mod tests {
         full.default = Some(OirValue::Object(fields));
         let hoisted = RefCell::new(Vec::new());
         let local = BTreeSet::new();
-        let types = PyTypes { context: "Cfg".to_string(), hoisted: &hoisted, local: &local };
+        let types = PyTypes { context: "Cfg".to_string(), hoisted: &hoisted, local: &local, named: &Default::default() };
         assert!(field_line(&empty, "Cfg", &types).ends_with("= field(default_factory=dict)"), "{}", field_line(&empty, "Cfg", &types));
         assert!(field_line(&full, "Cfg", &types).ends_with("= field(default_factory=lambda: {\"open\": []})"), "{}", field_line(&full, "Cfg", &types));
     }

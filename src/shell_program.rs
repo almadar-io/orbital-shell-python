@@ -78,10 +78,7 @@ impl ShellProgram for PythonProgram {
             );
         }
         Ok(GenerateResponse {
-            files: written_files(&generated)
-                .into_iter()
-                .map(|file| format!("{}/{file}", crate::PythonShell::new().generated_dir()))
-                .collect(),
+            files: written_files(&generated, crate::PythonShell::new().generated_dir()),
             warnings,
             next_steps: vec![
                 format!("cd {}", output.display()),
